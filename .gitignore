@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: 2026 Christopher Spitler
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+.DS_Store
+.env
+.env.*
+!.env.example
+docs/*.local.md
+
+__pycache__/
+*.py[cod]
+*.egg-info/
+.coverage
+.pytest_cache/
+.venv/
+dist/
+build/
+
+# Local captures and downloaded regulatory exhibits can contain private data
+# or large binaries. Keep only the authored documentation in version control.
+captures/
+tmp/

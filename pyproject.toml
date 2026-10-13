@@ -1,0 +1,37 @@
+# SPDX-FileCopyrightText: 2026 Christopher Spitler
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hd-platinum-rf"
+version = "0.1.0"
+description = "Open-source tools preserving communication with discontinued Hunter Douglas Platinum blinds and shades"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{ name = "hd-platinum-rf contributors" }]
+license = "AGPL-3.0-or-later"
+license-files = [
+    "LICENSE",
+    "LICENSES/AGPL-3.0-or-later.txt",
+    "LICENSES/CC-BY-SA-4.0.txt",
+]
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/spitcool/hd-platinum-rf"
+Issues = "https://github.com/spitcool/hd-platinum-rf/issues"
+
+[project.scripts]
+hd-platinum = "hd_platinum.cli:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

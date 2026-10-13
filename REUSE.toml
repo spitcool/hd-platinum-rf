@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Christopher Spitler
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+version = 1
+
+[[annotations]]
+path = ["DCO"]
+precedence = "override"
+SPDX-FileCopyrightText = "2004, 2006 The Linux Foundation and its contributors"
+SPDX-License-Identifier = "LicenseRef-DCO-1.1-copying"
