@@ -70,12 +70,15 @@ def _atomic_json(path, value):
 
 
 class SequenceStore:
-    """Process-safe 16-bit allocator: durable reservation precedes every TX.
+    """Process-safe local ordinal allocator: reservation precedes every TX.
 
     Initial seeds are mandatory only for a new store. Supplying the original
     seed again is harmless; a different seed is rejected instead of resetting
-    an existing store. Exhaustion requires operator attention, never silent
-    reuse. Reservations are not rolled back after exceptions or process death.
+    an existing store. The existing version-1 format retains a 16-bit local
+    ordinal; its low byte is the firmware's wrapping transaction counter. The
+    on-air command-count byte is independent and stays one for this backend.
+    Local exhaustion requires operator attention, never silent reset.
+    Reservations are not rolled back after exceptions or process death.
     """
 
     def __init__(self, state_dir, *, initial_sequence=None):
@@ -399,6 +402,9 @@ class BladeRFBridgeBackend:
 
             try:
                 plan = build_bridge_plan(command, sequence)
+                wire_metadata = plan.as_dict()
+                receipt.update({key: wire_metadata[key]
+                                for key in ("command_count", "transaction_counter")})
                 tx_path, rx_path = directory / "transmit.sc16q11", directory / "receive.sc16q11"
                 waveform_options = {"sample_rate_hz": self.tx_config.sample_rate_hz} if wide else {}
                 artifact = write_bridge_waveform(tx_path, plan, **waveform_options)
@@ -505,7 +511,8 @@ class BladeRFBridgeBackend:
                 stage("cleanup_checked")
                 checkpoint()
             return {"status": "submitted", "frames_sent": 10, "duration_seconds": DURATION_SECONDS,
-                    "sequence": sequence, "channels_hz": [CENTER_HZ],
+                    "sequence": sequence, "command_count": receipt["command_count"],
+                    "transaction_counter": receipt["transaction_counter"], "channels_hz": [CENTER_HZ],
                     "detail": ("Finite sync request submitted with concurrent RX; enrollment is unverified"
                                if syncing else
                                "Finite Jog request submitted with concurrent RX; movement is unverified"

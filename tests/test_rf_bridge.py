@@ -88,12 +88,37 @@ class BridgePacketTests(unittest.TestCase):
             self.assertEqual(long[:8], bytes.fromhex("010a023412340408"))
             self.assertEqual(long[8:11], bytes((position, 0, 1)))
             self.assertEqual(reduce(operator.xor, long[1:]), 255)
-        for sequence in (0, 255, 256, 65535):
+        for sequence in (0, 255, 256, 511, 512, 65535):
             for count in range(5):
                 short = build_sequence_payload(sequence, count)
                 self.assertEqual(short[:4], bytes.fromhex("01070238"))
-                self.assertEqual(short[4:8], sequence.to_bytes(2, "big") + bytes((count, 6)))
+                self.assertEqual(short[4:8], bytes((1, sequence & 255, count, 6)))
                 self.assertEqual(reduce(operator.xor, short[1:]), 255)
+
+    def test_command_count_stays_one_when_transaction_counter_wraps(self):
+        # Original ROM builder, executed with fictional fixtures and stopped
+        # before its radio-send entry, independently produced these packets.
+        # Release increments only an eight-bit counter: FF -> 00, count stays1.
+        expected = {
+            255: "0107023801ff04063e",
+            256: "0107023801000406c1",
+            511: "0107023801ff04063e",
+            512: "0107023801000406c1",
+            65535: "0107023801ff04063e",
+        }
+        for ordinal, payload_hex in expected.items():
+            with self.subTest(ordinal=ordinal):
+                plan = build_bridge_plan(command(), ordinal)
+                self.assertEqual(plan.frames[1].payload.hex(), payload_hex)
+                metadata = plan.as_dict()
+                self.assertEqual(metadata["sequence"], ordinal)
+                self.assertEqual(metadata["command_count"], 1)
+                self.assertEqual(metadata["transaction_counter"], ordinal & 255)
+                for frame in plan.frames:
+                    parsed = parse_frame(frame.bits, framing="esb", payload_length=len(frame.payload))
+                    self.assertTrue(parsed.crc_valid)
+                self.assertEqual(tuple(frame.start_sample for frame in plan.frames), BURST_START_SAMPLES)
+        self.assertEqual(build_sequence_payload(0, 4), build_sequence_payload(256, 4))
 
     def test_full_esb_frames_parse_with_captured_lengths_and_pid_cycle(self):
         plan = build_bridge_plan(command(), 256)

@@ -80,6 +80,12 @@ records image and simulator hashes. No firmware bytes are patched.
 
 ## Remaining board work
 
+Separate `firmware-bridge-probe` and `firmware-native-probe` commands execute
+the original RF payload builders with fictional inputs, stopping before SPI.
+They also check transaction rollover, native channel rotation and phase-counter
+behavior. See [Protocol conformance](protocol-conformance.md) for invocation,
+findings and limits; these probes do not require completing board startup.
+
 A separate private reset-path experiment executes the unchanged firmware
 through functional clock, SPI SRAM initialization and EEPROM control models.
 It stops before executing the generic simulator's Timer2 vector at 0x002b;

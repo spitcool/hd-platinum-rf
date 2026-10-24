@@ -1,12 +1,12 @@
 # SPDX-FileCopyrightText: 2026 Christopher Spitler
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""Capture-supported 250 kbps bridge packets and the exercised finite PHY.
+"""Firmware-verified 250 kbps bridge payloads and the exercised finite PHY.
 
-The sequence word and countdown are observed fields, not an assertion of their
-receiver-side semantics. This module only creates samples; it never opens RF
-hardware. The flat lead deliberately preserves the profile exercised with a
-real repeater and shade. Position requests do not establish resulting position.
+The local sequence ordinal is distinct from the eight-bit on-air transaction
+counter. This module only creates samples; it never opens RF hardware. The flat
+lead deliberately preserves the profile exercised with a real repeater and
+shade. Position requests do not establish resulting position.
 """
 
 from __future__ import annotations
@@ -73,11 +73,17 @@ def build_position_payload(room_rf_id: bytes, mask: int, position: int,
 
 
 def build_sequence_payload(sequence: int, countdown: int) -> bytes:
-    """Encode the observed short-packet structure, retaining the constant 6."""
+    """Encode one command's short packet from a durable local sequence ordinal.
+
+    Original firmware stores command count and transaction counter as separate
+    bytes. A single-command plan always advertises count 1; its transaction byte
+    wraps at 255. The 16-bit argument remains a local allocation identifier for
+    compatibility with existing durable state, not a 16-bit on-air field.
+    """
     _integer(sequence, "sequence", 0, 65535)
     _integer(countdown, "countdown", 0, 4)
-    return _checksum(b"\x01\x07\x02\x38" + sequence.to_bytes(2, "big")
-                     + bytes((countdown, 6)))
+    return _checksum(b"\x01\x07\x02\x38"
+                     + bytes((1, sequence & 0xff, countdown, 6)))
 
 
 def build_sync_payload(room_rf_id: bytes, mask: int) -> bytes:
@@ -181,6 +187,7 @@ class BridgeWaveformPlan:
                   "lead_policy": "Unmodulated center carrier; exercised flat-lead profile",
                   "sample_count": SAMPLE_COUNT * factor, "duration_seconds": DURATION_SECONDS,
                   "frame_count": 10, "sequence": self.sequence,
+                  "command_count": 1, "transaction_counter": self.sequence & 0xff,
                   "burst_start_samples": [value * factor for value in BURST_START_SAMPLES]}
         if factor == 4:
             result["interpolation"] = {

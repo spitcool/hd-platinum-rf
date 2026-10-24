@@ -114,7 +114,7 @@ The working host implementation in
 | Modulation synthesis | GFSK, ±160 kHz deviation, BT=0.5 |
 | Address | Three bytes `e7 e7 e7` |
 | Frame | 8-bit preamble, 24-bit address, 9-bit PCF, payload, CRC16 |
-| Payload lengths | Alternating 12-byte command and 9-byte sequence/countdown frames |
+| Payload lengths | Alternating 12-byte command and 9-byte count/transaction/countdown frames |
 | PCF | Six-bit payload length, two-bit PID, one-bit NO_ACK; reference PID is frame index modulo 4 and NO_ACK is 0 |
 | CRC | 16-bit polynomial 0x1021, initial 0xffff over address + PCF + payload, MSB first |
 | Burst | Ten frames; reference waveform duration 112.134 ms |
@@ -169,9 +169,13 @@ Preserve these application behaviors from
 [bladerf_bridge.py](../../src/hd_platinum/bladerf_bridge.py) and the
 [emulator documentation](../../README.md#bridge-emulator):
 
-- Reserve and durably commit each 16-bit sequence before RF transmission;
-  keep it consumed after an interruption or failure. Do not silently wrap at
-  65535 or reset the stored state during routine firmware updates.
+- Reserve and durably commit each local ordinal before RF transmission;
+  keep it consumed after an interruption or failure. Original firmware uses
+  separate one-byte command count and wrapping transaction counter fields.
+  For this single-command backend, emit count 1 and the low byte of the ordinal;
+  never serialize the entire ordinal as a two-byte field. The current host's
+  version-1 store retains its 16-bit exhaustion limit; do not silently reset it
+  during routine firmware updates.
 - Serialize commands from TCP and HTTP through one radio owner. Keep long
   operations out of interrupt handlers and prevent screen/network activity
   from corrupting radio timing.

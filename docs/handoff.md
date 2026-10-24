@@ -203,7 +203,10 @@ Obtain that installation-specific value from the private session journal; no
 public example seed is safe to reuse. Preserve the state directory across
 restarts and omit the seed afterward. Reservations are persisted before radio
 access, serialized across processes, and consumed even after an uncertain
-failure. There is no automatic retry or sequence wrap.
+failure. There is no automatic retry or local ordinal reset. Firmware analysis
+establishes that only the low eight bits are the wrapping on-air transaction
+counter; the adjacent byte is command count and remains one. The existing
+version-1 state file and its local exhaustion limit are preserved.
 
 The default profile is ten packets in `112.134 ms`, `2440 MHz`, `250 kbps`,
 `8 MS/s`, `1.5 MHz` bandwidth, and a flat carrier lead. Position commands retain

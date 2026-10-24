@@ -85,15 +85,18 @@ def _parser() -> argparse.ArgumentParser:
                           help="APK firmware asset to inspect (default: gateway)")
     firmware.add_argument("--output-dir", help="extract into a new private directory; omit for inspection only")
 
-    probe = subparsers.add_parser(
-        "firmware-probe", help="run the original firmware keepalive handler in an offline simulator")
-    probe_source = probe.add_mutually_exclusive_group(required=True)
-    probe_source.add_argument("--apk", help="local Platinum APK containing the gateway image")
-    probe_source.add_argument("--hex", help="local gateway Intel HEX image")
-    probe.add_argument("--simulator", required=True, help="path to a separately built uCsim 8051 executable")
-    probe.add_argument("--output-dir", required=True, help="new private directory for execution reports")
-    probe.add_argument("--instruction-limit", type=int, default=100_000)
-    probe.add_argument("--timeout", type=_positive_float, default=30.0)
+    for name, description in (
+            ("firmware-probe", "run the original firmware keepalive handler offline"),
+            ("firmware-bridge-probe", "compare bridge RF payloads against original firmware offline"),
+            ("firmware-native-probe", "compare shade RF payloads and scheduling against original firmware offline")):
+        probe = subparsers.add_parser(name, help=description)
+        probe_source = probe.add_mutually_exclusive_group(required=True)
+        probe_source.add_argument("--apk", help="local Platinum APK containing the gateway image")
+        probe_source.add_argument("--hex", help="local gateway Intel HEX image")
+        probe.add_argument("--simulator", required=True, help="path to a separately built uCsim 8051 executable")
+        probe.add_argument("--output-dir", required=True, help="new private directory for execution reports")
+        probe.add_argument("--instruction-limit", type=int, default=100_000)
+        probe.add_argument("--timeout", type=_positive_float, default=30.0)
 
     inventory = subparsers.add_parser(
         "inventory",
@@ -232,7 +235,7 @@ def _parser() -> argparse.ArgumentParser:
     emulate.add_argument("--inventory", required=True, help="saved original bridge inventory, preserving raw records")
     emulate.add_argument("--backend", choices=("dry-run", "bladerf-bridge"), default="dry-run")
     emulate.add_argument("--state-dir", default="tmp/bridge-emulator")
-    emulate.add_argument("--initial-sequence", type=int, help="next 16-bit RF sequence, required only for a new live state store")
+    emulate.add_argument("--initial-sequence", type=int, help="next local 16-bit ordinal; low byte is RF transaction counter; new stores only")
     emulate.add_argument("--host", default="127.0.0.1")
     emulate.add_argument("--port", type=int, default=522)
     emulate.add_argument("--allowed-client", action="append", help="trusted IPv4/IPv6 client CIDR; required for LAN binding")
@@ -402,12 +405,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "firmware-inspect":
             from .firmware import inspect_firmware
             return inspect_firmware(args)
-        if args.command == "firmware-probe":
+        if args.command in ("firmware-probe", "firmware-bridge-probe", "firmware-native-probe"):
             from .firmware import FirmwareImage
-            from .firmware_runtime import run_keepalive_probe
+            if args.command == "firmware-bridge-probe":
+                from .firmware_bridge import run_bridge_probe as run_probe
+            elif args.command == "firmware-native-probe":
+                from .firmware_native import run_native_probe as run_probe
+            else:
+                from .firmware_runtime import run_keepalive_probe as run_probe
             image = (FirmwareImage.from_apk(args.apk) if args.apk
                      else FirmwareImage.from_hex(args.hex))
-            report = run_keepalive_probe(
+            report = run_probe(
                 image, simulator=args.simulator, output_dir=args.output_dir,
                 instruction_limit=args.instruction_limit, timeout_seconds=args.timeout)
             print(json.dumps(report, indent=2, sort_keys=True))

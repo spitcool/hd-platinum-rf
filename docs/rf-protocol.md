@@ -98,6 +98,15 @@ is implemented offline; interoperability of this 2 Mbps path remains unverified.
 
 ## 2440 MHz bridge and repeater observations — 2026-10-24
 
+**[ORIGINAL FIRMWARE EXECUTION]** A later offline conformance check establishes
+that short-packet bytes 4 and 5 are command count and an independent wrapping
+8-bit transaction counter. They are not one 16-bit sequence field. The public
+single-command encoder now emits count 1 and the local reservation's low byte.
+The original long and native payload builders also pass explicit comparisons;
+see [Protocol conformance](protocol-conformance.md) for reproducible probes,
+capture checks and the unqualified direct-channel scheduling path. Earlier
+capture descriptions below retain their observation scope.
+
 **[LOCAL OBSERVED]** Fresh and restored recordings support approximately
 `250 kbps` binary FSK near `2440 MHz`, with an ESB layout distinct from the
 wide five-byte position packets:

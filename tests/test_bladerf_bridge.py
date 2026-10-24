@@ -345,6 +345,26 @@ class BridgeBackendTests(unittest.TestCase):
         self.assertNotIn("1234", json.dumps(result))
         self.assertNotIn("Test shade", json.dumps(result))
 
+    def test_transaction_byte_wrap_preserves_command_count_and_persistent_ordinal(self):
+        first = self.backend(FakeLibrary(), initial=511)(self.command)
+        second = self.backend(FakeLibrary(), initial=None)(self.command)
+        self.assertEqual((first["sequence"], first["command_count"], first["transaction_counter"]),
+                         (511, 1, 255))
+        self.assertEqual((second["sequence"], second["command_count"], second["transaction_counter"]),
+                         (512, 1, 0))
+        plans = {}
+        for run in (Path(self.directory.name) / "runs").iterdir():
+            plan = json.loads((run / "plan.json").read_text())
+            receipt = json.loads((run / "receipt.json").read_text())
+            plans[plan["sequence"]] = plan
+            self.assertEqual(receipt["command_count"], 1)
+            self.assertEqual(receipt["transaction_counter"], plan["transaction_counter"])
+            for frame in plan["frames"][1::2]:
+                self.assertEqual(bytes.fromhex(frame["payload_hex"])[4:6],
+                                 bytes((1, plan["transaction_counter"])))
+        self.assertEqual(set(plans), {511, 512})
+        self.assertEqual(SequenceStore(self.directory.name).reserve(), 513)
+
     def test_first_rx_status_failure_refuses_iq_and_burns_sequence(self):
         lib = FakeLibrary(first_status=1)
         with self.assertRaises(RadioError):

@@ -228,6 +228,13 @@ and uncertain failures consume a sequence without automatic retransmission.
 An initial sequence is installation-specific and comes from private records;
 tests use fictional values. Keep the state directory across restarts.
 
+Original-code RF probes now independently check bridge and native payload
+construction, transaction-byte rollover, native channel rotation and phase
+counters. A backend restart regression crosses local ordinals 511→512 and
+requires wire command count 1 with transaction 255→0, retaining durable state.
+See [Protocol conformance](protocol-conformance.md). These checks do not qualify
+the direct backend's whole-train-per-channel schedule or new-identity pairing.
+
 Optional discovery must be checked on the actual LAN with the original client.
 UDP 137 may conflict with `netbiosd`; requesting `--discovery-reuse-port` does
 not establish that both services receive or answer broadcasts correctly.

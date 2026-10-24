@@ -131,9 +131,11 @@ hd-platinum bridge-emulate \
 ```
 
 Omit `--initial-sequence` on subsequent starts. The store reserves and persists
-each 16-bit sequence before radio access, serializes commands across processes,
-and burns a reserved value on failure; it does not automatically retry or wrap.
-Do not delete the state directory to reset a sequence. Optional `--device` and
+each local ordinal before radio access, serializes commands across processes,
+and burns a reserved value on failure. The low byte is the on-air transaction
+counter, which wraps at 256; the separate command-count byte stays one. The
+version-1 local store retains its 16-bit exhaustion limit and never resets or
+retries automatically. Do not delete the state directory to reset it. Optional `--device` and
 `--fpga` select the radio and a compatible FPGA image.
 
 The fixed working profile sends ten packets over **112.134 ms** at `2440 MHz`,
@@ -231,6 +233,12 @@ It verifies an original-code response with an explicit connection fixture;
 complete board startup, Ethernet and RF peripherals remain unfinished.
 See [Original firmware execution](docs/firmware-emulation.md) for CPU details,
 commands and the exact boundary of the working probe.
+
+`firmware-bridge-probe` and `firmware-native-probe` compare RF payloads against
+the original firmware's executed builders. The
+[protocol conformance report](docs/protocol-conformance.md) records the corrected
+command-count/transaction fields, independent capture checks, and the remaining
+direct-to-shade timing limitations.
 
 ## Testing environment
 
