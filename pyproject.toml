@@ -20,6 +20,9 @@ license-files = [
 ]
 dependencies = []
 
+[project.optional-dependencies]
+analysis = ["numpy>=1.26,<3", "scipy>=1.11,<2"]
+
 [project.urls]
 Repository = "https://github.com/spitcool/hd-platinum-rf"
 Issues = "https://github.com/spitcool/hd-platinum-rf/issues"

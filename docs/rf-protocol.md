@@ -3,23 +3,98 @@
 
 # Hunter Douglas Platinum RF protocol
 
-Status: working specification, evidence review dated 2026-10-13.
+Status: working specification with local handheld and bridge-command-correlated position decoding, evidence review dated 2026-10-23.
 
-This document specifies the legacy Hunter Douglas **Platinum** four-group hand-remote signal, including the remote identified by part number `2984495100`. It also records what is known about the Platinum App Bridge, but FCC bandwidth measurements show that the bridge has a substantially narrower RF waveform and must not yet be treated as the same PHY. It does not describe the later PowerView/Pebble protocol. An original bridge is useful as a Phase 2 network reference, but its installation-specific address is not part of either RF protocol.
+This document specifies the legacy Hunter Douglas **Platinum** four-group hand-remote signal, including the remote identified by part number `2984495100`, and position packets received during original App Bridge transactions. The latter use the wide remote-style framing, but their emitting component has not been isolated: it could be the bridge, a repeater, or another associated transmitter. The Bridge's FCC-tested narrow transmission therefore remains a separate, undecoded observation. This document does not describe the later PowerView/Pebble protocol. The original bridge's installation-specific network address is not part of either RF protocol.
 
-The practical result so far is that Platinum is not Wi-Fi or Bluetooth. It is a proprietary application payload carried by a Nordic-style 2.4 GHz GFSK packet radio. The known settings are sufficient to build an nRF24L01+ replay transmitter. A true SDR transmitter still needs raw-IQ validation of serialization, CRC byte order, and exact burst timing before this can be called a complete waveform specification.
+The practical result so far is that Platinum is not Wi-Fi or Bluetooth. The handheld uses a proprietary application payload carried by a Nordic-style 2.4 GHz GFSK packet radio. Initial local IQ decoding recovered Group 1 Up, Down, and their following release-tail codes with valid CRCs. For this captured remote, the supported layout is an **88-bit frame without a Packet Control Field**, at approximately `2 Mbps`. This differs from the earlier datasheet-based 97-bit hypothesis. Generated packets have subsequently passed protected conducted tests on all three frequencies; see the [lab log](lab-log.md#finite-transmitter-prototype--2026-10-23). Observed shade operation, the full action matrix, independent Nordic-receiver cross-check, and general timing qualification remain incomplete.
 
 ## Evidence labels
 
 Every technical claim below uses one of these labels:
 
 - **[PRIMARY]** — a manufacturer data sheet or regulatory filing.
-- **[CAPTURE]** — a community member reported a direct SPI, logic-analyzer, or RF capture. This is strong evidence, but has not yet been reproduced on this installation.
+- **[CAPTURE]** — a community member reported a direct SPI, logic-analyzer, or RF capture. Any local reproduction is marked separately.
+- **[LOCAL OBSERVED]** — measured or decoded from this installation's retained IQ. The stated scope and limitations apply; this does not imply all remote revisions or validation gates have been covered.
 - **[REFERENCE]** — behavior of the local `HD-Platinum-Remote-Hack.ino` reference sketch, not necessarily behavior of an original remote.
-- **[INFERENCE]** — a conclusion that follows from the sources but still needs a local capture.
+- **[INFERENCE]** — a conclusion that follows from available evidence but still requires a direct test.
 - **[UNKNOWN]** — not established by the available evidence.
 
-“Verified” in this document means verified by the cited source, not yet independently verified against the equipment at this site.
+Source-backed claims and local observations are distinguished explicitly. Initial local decoding does not constitute independent radio interoperability validation or completion of the capture matrix.
+
+## Initial local receive result — 2026-10-23
+
+**[LOCAL OBSERVED]** A 60-second receive-only recording of the already-paired handheld used `48 MS/s` complex SC16Q11 samples, a requested center of `2452 MHz` (reported `2451999998 Hz`), `46 MHz` analog bandwidth, manual `15 dB` gain, and the bladeRF's onboard clock. The operator confirmed Group 1 Up–Down twice during the recording. All bias tees were off and no SDR transmitter was started. The full file contained no clipped or out-of-range sample components.
+
+The complete 60-second scan recovered `21,585` CRC-valid, carrier-supported 88-bit frames across all three channels: `11,980` Group 1 direction/release frames and `9,605` earlier-state frames. Every no-PCF frame also passed an independent bytewise CRC calculation and zero-residue check. The complete 30-second background scan recovered no accepted frames. Counts describe recovered frames, not a measured packet error rate.
+
+These frames and the independent selected-window PHY checks establish the following for this remote:
+
+| Property | Local observation | Scope |
+| --- | --- | --- |
+| On-air layout | `8-bit preamble + 24-bit address + 40-bit payload + 16-bit CRC`, with no 9-bit PCF | The 88-bit interpretation fits the decoded payloads and data-bearing interval. Longer CRC-valid extensions must also be rejected against the RF boundary; CRC alone does not select frame length. |
+| Serialization | `0xaa` preamble; `e7 e7 e7` address; payload and CRC MSB first | Positive phase-discriminator frequency maps to logical 1 for the recorded `I + jQ` convention. |
+| CRC | Polynomial `0x1021`, initial value `0xffff`, over address plus five payload bytes | Preamble excluded; received 16-bit CRC is MSB first. Actual identity-bearing payloads and their CRCs remain private. |
+| Data rate | Approximately `2 Mbps` | Independent fitting on selected CRC-valid frame tails gave a median near `1.9995 Mbps`; short-packet fits are not a calibrated clock measurement. |
+| Channel coverage | CRC-valid, carrier-supported frames at `2433`, `2452`, and `2471 MHz` in a selected command interval | This demonstrates reception on all three channels; it does not complete the per-command/per-channel capture matrix. |
+| Commands | Group 1 Up, Down, and following `0x21`/`0x22` tails | The operator-confirmed sequence is supported by decoded action changes; other groups and long holds are not yet validated locally. |
+| Additional state | Mode `0x01`, group mask `0x00`, action/state `0x80` occurs in earlier clusters | The bytes are observed; their association with a specific button event and their no-group meaning remain unverified. |
+
+**[LOCAL OBSERVED]** An independent phase-discriminator measurement on selected `2471 MHz` frame tails estimated a median deviation of approximately `±359 kHz`, with a 5th–95th percentile range of about `±339–377 kHz`. This is an estimate from the received waveform and filtering, not a calibrated replacement for Nordic's typical `±320 kHz` chip specification. RF energy persists for roughly `93 µs` per measured burst: approximately `49 µs` precedes the validated `44 µs` data frame. The earlier energy must not be counted as a second decoded packet, and its physical cause remains unverified.
+
+**[LOCAL OBSERVED]** A selected wideband interval shows the cyclic order `2433 → 2452 → 2471 → 2433 MHz`, generally with about `193–196 µs` between RF burst starts and occasional longer intervals. This is a sample-derived observation, not a fully qualified timing distribution. The raw-IQ format lacks per-block timestamps and overrun flags; a separate five-second counter test passed at `48 MS/s`, while `61.44 MS/s` failed continuity. That short counter test does not prove continuity within the remote recording.
+
+Original IQ is retained read-only with SHA-256 hashes, settings, command logs, and private decode outputs. A separate background recording and independently authored decoding/PHY checks support the analysis. No independent Nordic receiver was used, no general `≥99%` decode-success claim is made, and the full capture matrix and conducted-transmission gates remain pending. See the [lab log](lab-log.md) for the bench record and [validation plan](#rigorous-local-capture-and-validation-plan) for the remaining gates.
+
+## Position packets correlated with original-bridge commands — 2026-10-23
+
+**[LOCAL OBSERVED]** Bounded feature-`04` LAN transactions produced CRC-valid
+`2 Mbps`, 88-bit no-PCF frames at `2452 MHz` and `2433 MHz`. They use the same
+`AA` preamble, `E7 E7 E7` address, five-byte payload, MSB-first serialization,
+positive-FM bit convention, and address-plus-payload CRC as the captured
+handheld. Independent CRC and zero-residue checks agree. This establishes a
+received waveform associated with bridge commands, not the identity of its
+physical transmitter or successful motor positioning.
+
+The observed position layout differs from the handheld application payload:
+
+| Byte offset | Position-packet observation | Scope |
+| ---: | --- | --- |
+| 0–1 | Match the target room's two-byte RF identifier from LAN inventory | Two room identifiers observed; actual values remain private. |
+| 2 | `0x50` phase followed by `0x32` phase | Consistent across the decoded requests; device-side meanings remain unknown. |
+| 3 | One-hot shade mask, consistent with `1 << (group_field - 1)` | Four targets in one room independently give `04`, `01`, `40`, `02` for inventory group fields `3`, `1`, `7`, `2`; another room gives `08` for field `4`. This is not the handheld's four-group numbering. |
+| 4 | Requested raw primary position | `00`, `80`, and `FF` occur with requests `0`, `128`, and `255`. The same target's `128` and `0` requests change only this byte. Other values and physical travel remain unverified. |
+
+A fictional example is `AA BB 50 04 80`, followed by `AA BB 32 04 80`:
+fictional room identifier `AABB`, mask `04`, requested raw position `128`.
+No real installation payload or payload CRC is published here.
+
+**[LOCAL OBSERVED]** The decoded `50` phase lasts approximately `1.49 s`,
+followed by approximately `0.30 s` of `32` frames. Pulses are roughly `95 µs`
+long. Matching `2433 → 2452 MHz` packets are commonly separated by about
+`234 µs`; center-channel repeat spacing is commonly about `701–720 µs`.
+These position observations differ from the handheld's roughly `193–196 µs`
+channel slots. A three-slot position schedule is a useful synthesis hypothesis,
+but no accepted position frame was recovered at `2471 MHz` in these recordings.
+Repeat counts and exact timing are not universal protocol limits.
+
+The initial two recordings had timestamp discontinuities. Five subsequent
+six-second recordings used larger RX buffering and had zero overrun flags or
+timestamp gaps. Offline `1.0` and `1.3 MHz` channel-filter variants improved
+recovery relative to the original `2 MHz` filter. Recovered counts are not an
+emitted-packet denominator. The original midpoint recording yielded no accepted
+frames even with both narrower filters across all four candidate channels; its
+missing train is unexplained. A later midpoint request on another target did
+produce the repeated `80` payload. Known-address `2 Mbps` searches found no
+accepted `2440 MHz` frames; this does not exclude another control-channel PHY.
+
+Longer CRC-valid zero-extension interpretations remain subject to the
+[framing caveat below](#full-over-the-air-framing-for-an-sdr). One isolated, different no-PCF
+payload also passed CRC in a noisy outer-channel trial; it is retained privately
+as an anomaly, excluded from expected-target counts, and not attributed to a
+second identity. The [lab log](lab-log.md#original-bridge-position-captures--2026-10-23)
+records the sanitized comparison matrix. Candidate position waveform generation
+is implemented offline; SDR-to-shade interoperability remains unverified.
 
 ## Compatibility boundary: do not mix generations
 
@@ -27,13 +102,18 @@ Every technical claim below uses one of these labels:
 | --- | --- | --- | --- |
 | Legacy Platinum hand remote | `2433`, `2452`, and `2471 MHz`; GFSK; community capture reports `2 Mbps`, 3-byte address, and 5-byte payload | FCC IDs [`UXURC4U`](https://fccid.io/UXURC4U) and [`UXURC4U2`](https://fccid.io/UXURC4U2) occupy `2433–2471 MHz`. The [`UXURC4U2` test report](https://fcc.report/FCC-ID/UXURC4U2/1688109.pdf) measured a wide 99%-power bandwidth of `3.38`, `3.65`, and `4.08 MHz` at those centers. | **Primary target of this document** |
 | Platinum wall switch | `2433`, `2452`, and `2471 MHz`; GFSK; measured 20 dB widths `1.80`, `1.98`, and `1.68 MHz` | FCC ID [`UXUWS4U`](https://fccid.io/UXUWS4U), model/part `2986340000`, [test report](https://fccid.io/UXUWS4U/Test-Report/test-report-1092829.pdf) | **Related and consistent with the wide remote family; payload not decoded here** |
-| Platinum App Bridge | Three main channels plus a `2440 MHz` control channel; all measured much narrower than the handheld signal | Bridge FCC ID [`UXUPC`](https://fccid.io/UXUPC); its [Part 15.249 report](https://fccid.io/UXUPC/Test-Report/SC1206696B-FCC-Part-15-249-RSS210-Test-Report-1757162.pdf) reports about `0.12–0.14 MHz` 99%-power bandwidth and `0.08–0.11 MHz` 20 dB bandwidth. It calls `2440 MHz` a short Bridge↔Repeater “Shock Burst” handshake and says main RF transmits sequentially at `2433/2452/2471`. | **Related but undecoded; capture separately** |
-| Platinum Repeater | Same four-channel narrowband architecture described for the Bridge | FCC ID [`UXUPR`](https://fccid.io/UXUPR). Its public [BOM](https://fccid.io/UXUPR/Parts-List-Tune-Up-Info/RXX9000X2611E01-rev6-Repeater-BOM-1759043.pdf) identifies Nordic `nRF24LU1P-F32Q32-R7`; its [RF report](https://fccid.io/UXUPR/Test-Report/SC1206696C-FCC-Part-15-249-RSS210-Test-Report-1759014.pdf) describes the four channels. | **Chip family established for the Repeater, not for the Bridge; packet format still unknown** |
+| Platinum App Bridge | Three main channels plus a `2440 MHz` control channel; all measured much narrower than the handheld signal | Bridge FCC ID [`UXUPC`](https://fccid.io/UXUPC); its [Part 15.249 report](https://fccid.io/UXUPC/Test-Report/SC1206696B-FCC-Part-15-249-RSS210-Test-Report-1757162.pdf) reports about `0.12–0.14 MHz` 99%-power bandwidth and `0.08–0.11 MHz` 20 dB bandwidth. It calls `2440 MHz` a short Bridge↔Repeater “Shock Burst” handshake and says main RF transmits sequentially at `2433/2452/2471`. | **Narrow transmission undecoded; local wide position frames are command-correlated but their emitter is unassigned** |
+| Platinum Repeater | Same four-channel narrowband architecture described for the Bridge | FCC ID [`UXUPR`](https://fccid.io/UXUPR). Its public [BOM](https://fccid.io/UXUPR/Parts-List-Tune-Up-Info/RXX9000X2611E01-rev6-Repeater-BOM-1759043.pdf) identifies Nordic `nRF24LU1P-F32Q32-R7`; its [RF report](https://fccid.io/UXUPR/Test-Report/SC1206696C-FCC-Part-15-249-RSS210-Test-Report-1759014.pdf) describes the four channels. | **Chip family established for the Repeater, not the Bridge; contribution to the local wide position frames remains unknown** |
 | Later PowerView/Pebble | A separate community capture reported `2407 MHz`, `1 Mbps`, a 3-byte address, and roughly 25 bytes after the address; an opened Pebble used an nRF51422 | FCC [`UXURC4U3`](https://fccid.io/UXURC4U3) spans a wider `2407–2480 MHz` range; see gpduino’s posts in the [protocol-investigation thread](https://forum.arduino.cc/t/nrf24l01-hack-on-hunter-douglas-shades/676940/17) | **Not compatible; do not import its packet layout, rolling fields, or channel into Platinum** |
 
 The long “Pebble” frames and the gpduino address-discovery sketch are useful methodological references only. They are not evidence that Platinum uses a 25-byte payload, `1 Mbps`, channel 7, rolling counters, or a non-Nordic checksum. Hunter Douglas also states that later PowerView remotes use a different communication method and cannot operate earlier PowerRise/Platinum shades in its [compatibility FAQ](https://www.hunterdouglas.com/faqs/can-i-use-my-new-powerview-pebble-remote-to-operate-my-older-powerrise-shades).
 
 Likewise, a shared set of three frequencies does not prove that the App Bridge emits the hand remote’s Nordic frames. The more-than-an-order-of-magnitude bandwidth difference is primary evidence for a distinct bridge RF PHY or transmit mode. The Repeater BOM proves that device contains an nRF24LU1+—whose radio is in the nRF24L01+ family—but it does not establish the Bridge chip, register configuration, or on-air frame. Whether the repeater translates narrow bridge frames into the wide remote waveform, and whether shades receive either form directly, remain **[UNKNOWN]**.
+
+The local command-correlated position packets do not contradict those FCC
+measurements: the emitting component and any narrow-to-wide translation have
+not been isolated. Keep the measured narrow signal, decoded wide position
+signal, and handheld waveform distinct when planning captures or transmitters.
 
 ## RF/PHY specification
 
@@ -42,7 +122,7 @@ Likewise, a shared set of three frequencies does not prove that the App Bridge e
 | Parameter | Value | Evidence and confidence |
 | --- | --- | --- |
 | Modulation | GFSK | **[PRIMARY]** The 2007 [`UXURC4U` test report](https://fccid.io/m/fa3a1a00dbbd2dcb57442c97e26e018682903603b417ae840101f0b276d08809.pdf) identifies GFSK. Nordic documents GFSK for the nRF24L01+. |
-| Air data rate | `2 Mbps` | **[CAPTURE]** Direct register dump reported `RF_SETUP = 0x0c` and `2MBPS`; the working reference sketch also selects `RF24_2MBPS`. This must still be checked against local IQ. |
+| Air data rate | `2 Mbps` | **[CAPTURE]** Direct register dump reported `RF_SETUP = 0x0c` and `2MBPS`; the working reference sketch also selects `RF24_2MBPS`. **[LOCAL OBSERVED]** CRC-valid local frame decoding and independent timing fits support approximately this rate. |
 | Typical deviation at `2 Mbps` | `±320 kHz` | **[PRIMARY]** nRF24L01+ product specification. This is a chip characteristic, not a measured value for this remote. |
 | Nominal nRF24L01+ width at `2 Mbps` | approximately `1.8 MHz` typical and `2.0 MHz` maximum at the 20 dB points | **[PRIMARY]** nRF24L01+ product specification. This is a chip-level specification, not a substitute for measuring the finished remote. |
 | Finished Platinum remote width | `3.38`, `3.65`, `4.08 MHz` 99%-power bandwidth at `2433`, `2452`, `2471 MHz`, respectively, for `UXURC4U2`; the 2007 `UXURC4U` report shows an approximately `3.02 MHz` 20 dB delta on its low-channel plot | **[PRIMARY]** FCC test reports. Analyzer method, 99%-power width, and 20 dB width are different measurements and must not be compared as if interchangeable. These values corroborate a wide remote waveform, while local IQ must establish actual demodulator settings. |
@@ -50,10 +130,10 @@ Likewise, a shared set of three frequencies does not prove that the App Bridge e
 | Finished Platinum wall-switch width | `1.80`, `1.98`, and `1.68 MHz` 20 dB bandwidth at `2433`, `2452`, and `2471 MHz` | **[PRIMARY]** `UXUWS4U` test report. This independently supports a wide legacy direct-control link, without proving the five-byte payload. |
 | RF channels | nRF `RF_CH` `33`, `52`, `71` (`0x21`, `0x34`, `0x47`) | **[CAPTURE]/[REFERENCE]** Community SPI/logic captures and the reference sketch. |
 | Center frequencies | `2433`, `2452`, `2471 MHz` | **[PRIMARY]** Nordic uses `f_center = 2400 MHz + RF_CH`; FCC filings for the legacy remote, wall switch, and bridge identify `2433–2471 MHz`, and the remote reports name all three centers. Shared centers do not establish shared modulation, data rate, or framing. |
-| Address width | 3 bytes | **[CAPTURE]** Direct register dump. |
-| TX address | `e7 e7 e7` (three active bytes) | **[CAPTURE]/[REFERENCE]** The register display prints `e7e7e7e7e7`, but `SETUP_AW` was 3 bytes, so only three bytes are on air. The reference sketch uses `{0xe7,0xe7,0xe7}`. |
-| Payload width | fixed 5 bytes | **[CAPTURE]** `RX_PW_P0 = 0x05`; logic-analyzer report says each payload load contains five bytes. Dynamic payload is off. |
-| CRC | enabled, 16 bit | **[CAPTURE]** Register dump reports `CONFIG = 0x0c` and 16-bit CRC. |
+| Address width | 3 bytes | **[CAPTURE]** Direct register dump. **[LOCAL OBSERVED]** Consistent with local framing and CRC validation. |
+| TX address | `e7 e7 e7` (three active bytes) | **[CAPTURE]/[REFERENCE]** The register display prints `e7e7e7e7e7`, but `SETUP_AW` was 3 bytes, so only three bytes are on air. **[LOCAL OBSERVED]** This address occurs in CRC-valid local frames. |
+| Payload width | fixed 5 bytes | **[CAPTURE]** `RX_PW_P0 = 0x05`; logic-analyzer report says each payload load contains five bytes. **[LOCAL OBSERVED]** Decoded frames contain five payload bytes; the local radio's registers were not read. |
+| CRC | enabled, 16 bit | **[CAPTURE]** Register dump reports `CONFIG = 0x0c` and 16-bit CRC. **[LOCAL OBSERVED]** Address-plus-payload CRC validates with polynomial `0x1021` and initial value `0xffff`. |
 | Auto acknowledgment | disabled (`EN_AA = 0`) | **[CAPTURE]** Direct register dump and logic-analyzer observation. |
 | Automatic retries | disabled (`ARC = 0`) | **[CAPTURE]** Reported explicitly; the reference sketch also programs zero retries. |
 | Dynamic payload / feature register | disabled (`DYNPD = 0`, `FEATURE = 0`) | **[CAPTURE]** Direct register dump. |
@@ -63,13 +143,15 @@ For the hand remote, `8–10 MS/s` complex sampling per center is a practical st
 
 ### Channel use
 
-**[CAPTURE]** The original remote was reported to send one packet on a channel, change channel, and repeat across all three channels. This is rapid sequential hopping, despite an FCC report’s informal wording that the remote transmits on three channels “simultaneously.” The likely sequence is `2433 → 2452 → 2471 MHz`, matching the reference implementation, but the starting channel and exact order are **[UNKNOWN]** until a synchronized local capture proves them.
+**[CAPTURE]** The original remote was reported to send one packet on a channel, change channel, and repeat across all three channels. This is rapid sequential hopping, despite an FCC report’s informal wording that the remote transmits on three channels “simultaneously.” **[LOCAL OBSERVED]** The cyclic order `2433 → 2452 → 2471 MHz` appears in the selected wideband interval, matching the reference implementation. The starting channel of every action and complete repeat/timing distributions remain unverified.
 
 The shades may listen on only one of the three channels, or may have another receive strategy. That is also **[UNKNOWN]**. The three-channel repetition is best understood as redundancy against interference, not as proof that separate shades are assigned separate frequencies.
 
 ## Radio configuration
 
-The following is the closest known faithful nRF24 configuration for Platinum transmission:
+The following is the closest known faithful nRF24 configuration for the
+Platinum handheld. The position frames share its decoded on-air layout, but
+their transmitter's registers have not been read:
 
 ```text
 channel             33, 52, or 71 (changed between packets)
@@ -85,7 +167,7 @@ dynamic payload      off
 
 An nRF24L01+ handles preamble, address, and CRC in hardware. Code supplies only the five application bytes. A software-defined radio must generate the full over-the-air frame described later.
 
-## Five-byte application payload
+## Five-byte handheld application payload
 
 The byte offsets below are zero-based. `ID0` and `ID1` are installation-specific bytes learned by the shades.
 
@@ -93,9 +175,9 @@ The byte offsets below are zero-based. `ID0` and `ID1` are installation-specific
 | ---: | --- | --- | --- |
 | 0 | `ID0` | Example capture: `0x03`; reference-sketch example: `0x9a` | **[CAPTURE]/[REFERENCE]** First byte of a two-byte remote/system identity. It is not part of the Nordic RF address. |
 | 1 | `ID1` | Example capture: `0xc1`; reference-sketch example: `0x8d` | **[CAPTURE]/[REFERENCE]** Second identity byte. Shades reportedly reject an identity they have not learned. Uniqueness and enrollment semantics are **[UNKNOWN]**. |
-| 2 | mode/state | `0x20` when a group is active; reference comments report `0x01` when no group is selected | `0x20` is **[CAPTURE]** for normal group commands. The `0x01` interpretation is **[REFERENCE]** only. |
-| 3 | group mask | `0x01`, `0x02`, `0x04`, `0x08`, `0xff`; possibly `0x00` for none | **[CAPTURE]** One-hot values select Groups 1–4 and `0xff` selects All. `0x00` is **[REFERENCE]** for no active group. |
-| 4 | action/state | `0xa1`, `0xa2`, `0x21`, `0x22`; reference comments also report `0x80` in the no-group state | **[CAPTURE]** `0xa1` Up pressed/held, `0xa2` Down pressed/held, `0x21` release tail after Up, `0x22` release tail after Down. `0x80` is **[REFERENCE]** and its semantic meaning is **[UNKNOWN]**. |
+| 2 | mode/state | `0x20` when a group is active; reference comments report `0x01` when no group is selected | **[CAPTURE]/[LOCAL OBSERVED]** `0x20` occurs in Group 1 commands. `0x01` also occurs locally, but its no-group interpretation remains **[REFERENCE]**. |
+| 3 | group mask | `0x01`, `0x02`, `0x04`, `0x08`, `0xff`; possibly `0x00` for none | **[CAPTURE]** One-hot values select Groups 1–4 and `0xff` selects All. **[LOCAL OBSERVED]** `0x01` accompanies confirmed Group 1 commands; `0x00` occurs in additional state frames whose meaning remains unverified. |
+| 4 | action/state | `0xa1`, `0xa2`, `0x21`, `0x22`; reference comments also report `0x80` in the no-group state | **[CAPTURE]/[LOCAL OBSERVED]** `0xa1` Up, `0xa2` Down, followed by `0x21` and `0x22` tails respectively. `0x80` also occurs locally, but its semantic meaning remains **[UNKNOWN]**. |
 
 ### Group values
 
@@ -114,11 +196,11 @@ The one-hot values strongly suggest a bit mask, and the reference sketch says co
 
 | Event | Byte 4 | Confidence |
 | --- | ---: | --- |
-| Up button pressed/held | `0xa1` | **[CAPTURE]** |
-| Down button pressed/held | `0xa2` | **[CAPTURE]** |
-| Up button released | `0x21` | **[CAPTURE]** |
-| Down button released | `0x22` | **[CAPTURE]** |
-| No-group state reported in reference comments | `0x80` | **[REFERENCE]** |
+| Up button pressed/held | `0xa1` | **[CAPTURE]/[LOCAL OBSERVED]**; local controlled actions were taps |
+| Down button pressed/held | `0xa2` | **[CAPTURE]/[LOCAL OBSERVED]**; local controlled actions were taps |
+| Up button released | `0x21` | **[CAPTURE]**; **[LOCAL OBSERVED]** tail following Up |
+| Down button released | `0x22` | **[CAPTURE]**; **[LOCAL OBSERVED]** tail following Down |
+| No-group state reported in reference comments | `0x80` | **[LOCAL OBSERVED]** byte value; no-group meaning remains **[REFERENCE]** |
 
 The relation `0xa1 → 0x21` and `0xa2 → 0x22` suggests that bit 7 marks an asserted/held command while the low bits encode direction. That is an **[INFERENCE]**, not a confirmed bit-field definition. Do not name `0x21` or `0x22` “stop” until behavior is tested: the capture proves only that each follows release of the corresponding button.
 
@@ -143,7 +225,7 @@ No rolling counter, encryption, or challenge/response appears in the legacy five
 
 ### Original-remote observations
 
-The best available direct timing report came from a logic analyzer attached to the remote’s nRF24 SPI and control lines:
+The available community report with correlated digital timing came from a logic analyzer attached to the remote’s nRF24 SPI and control lines. The initial local RF timing estimates are recorded above; no local SPI trace has been taken.
 
 - **[CAPTURE]** CE was pulsed high for approximately `13 µs`, satisfying Nordic’s minimum `10 µs` transmit trigger.
 - **[CAPTURE]** The contributor reported approximately `193 µs` to load the next five-byte payload, change channel, and reach the next transmit operation. The precise measurement endpoints were not published, so treat this as approximate.
@@ -164,31 +246,41 @@ Do not reproduce the four-by-999 flood in a first SDR transmitter. Besides consu
 
 ## Full over-the-air framing for an SDR
 
-### Datasheet-consistent expectation: Enhanced ShockBurst framing
+### Locally observed framing: 88 bits without PCF
 
-The nRF24L01+ Product Specification v1.0 §7.9 says that ShockBurst compatibility requires all of the following: `EN_AA = 0`, automatic retry count `ARC = 0`, **and** an air rate of `1 Mbps` or `250 kbps`. Section 7.9.1 says that compatibility-mode ShockBurst omits the 9-bit Packet Control Field (PCF). Platinum has the first two reported settings, but the working capture/replay configuration is explicitly `2 Mbps`. It therefore does not meet Nordic’s documented no-PCF compatibility conditions.
-
-The datasheet-consistent **[INFERENCE]** is consequently an Enhanced ShockBurst-format packet with automatic acknowledgment and retransmission features disabled:
-
-```text
-8-bit preamble | 24-bit address | 9-bit PCF | 40-bit payload | 16-bit CRC
-```
-
-That is 97 on-air bits, nominally `48.5 µs` at `2 Mbps`, excluding transmitter startup, ramp, and any inter-frame idle time. Per Nordic §7.3, the PCF contains six payload-length bits, a two-bit PID, and `NO_ACK`; CRC covers address, PCF, and payload and uses polynomial `x^16 + x^12 + x^5 + 1` (`0x1021`) with initial value `0xffff`. With static payload length, Nordic says the length field is not used, but the PCF remains part of an Enhanced ShockBurst frame. The exact on-air values of those unused length bits, the initial PID, and `NO_ACK` must be recovered from IQ rather than guessed.
-
-If each repeated frame is loaded as a new TX payload, the two-bit PID should advance and wrap. Thus “identical” five-byte FIFO payloads can still produce a four-state PCF/CRC pattern on air. The community logs cannot reveal that because an nRF24 receiver removes PCF and CRC before returning the payload.
-
-This is still not a locally verified waveform. The expected `48.5 µs` does not directly explain the FCC report’s `92 µs` duty-cycle element, and the reported register/configuration evidence is community-derived.
-
-### Falsifiable alternative: legacy ShockBurst framing
-
-Raw IQ could instead show the no-PCF form:
+**[LOCAL OBSERVED]** The initially captured remote uses the following supported interpretation:
 
 ```text
 8-bit preamble | 24-bit address | 40-bit payload | 16-bit CRC
 ```
 
-That is 88 bits, nominally `44 µs` at `2 Mbps`; CRC would cover address and payload. This alternative conflicts with Nordic’s documented `1 Mbps`/`250 kbps` compatibility condition, so it is not the leading expectation. Retain it as a test because the exact original silicon, register sequence, and on-air framing have not been independently captured. Frame length and CRC—not assumptions in an nRF24 decoder—must decide the issue.
+For the recorded IQ convention, the preamble is `0xaa`, positive discriminator frequency maps to logical 1, and bytes are serialized MSB first. CRC covers the 24 address bits followed immediately by the 40 payload bits, using polynomial `0x1021` and seed `0xffff`; the received CRC is also MSB first. No PCF, whitening, or extra coding is needed to validate these frames. At `2 Mbps` the 88 data-bearing bits occupy approximately `44 µs`, near the end of a roughly `93 µs` RF-energy burst.
+
+The CRC result must be checked together with the waveform boundary and payload alignment. A longer candidate can occasionally retain a valid CRC through extension of a codeword into post-burst samples; a CRC-only search is insufficient to distinguish such candidates from a real 97-bit packet. The locally supported 88-bit interpretation fits the data-bearing interval and recovers the operator-confirmed action sequence.
+
+In the complete local scan, `221` longer CRC-valid interpretations failed the final-symbol RF-power check. One additional longer interpretation passed that permissive envelope threshold but coincided with a valid 88-bit frame and was exactly its CRC codeword plus nine zeros. It remains explicitly ambiguous in the raw decoder output; it is not evidence for another transmitted packet or a second identity. The `21,585` no-PCF total excludes that alternative interpretation.
+
+This establishes an on-air layout for the captured remote, not its exact radio silicon, internal registers, or every Platinum revision. The documentation-based alternative below remains useful for comparison with other hardware.
+
+### Earlier datasheet-based hypothesis: 97-bit Enhanced ShockBurst framing
+
+The nRF24L01+ Product Specification v1.0 §7.9 says that ShockBurst compatibility requires all of the following: `EN_AA = 0`, automatic retry count `ARC = 0`, **and** an air rate of `1 Mbps` or `250 kbps`. Section 7.9.1 says that compatibility-mode ShockBurst omits the 9-bit Packet Control Field (PCF). Platinum has the first two reported settings, but the working capture/replay configuration is explicitly `2 Mbps`. It therefore does not meet Nordic’s documented no-PCF compatibility conditions.
+
+Before local IQ was available, the datasheet-consistent **[INFERENCE]** was consequently an Enhanced ShockBurst-format packet with automatic acknowledgment and retransmission features disabled:
+
+```text
+8-bit preamble | 24-bit address | 9-bit PCF | 40-bit payload | 16-bit CRC
+```
+
+That is 97 on-air bits, nominally `48.5 µs` at `2 Mbps`, excluding transmitter startup, ramp, and any inter-frame idle time. Per Nordic §7.3, the PCF contains six payload-length bits, a two-bit PID, and `NO_ACK`; CRC covers address, PCF, and payload and uses polynomial `x^16 + x^12 + x^5 + 1` (`0x1021`) with initial value `0xffff`. With static payload length, Nordic says the length field is not used, but the PCF remains part of an Enhanced ShockBurst frame. For a remote that actually uses this layout, the unused length bits, initial PID, and `NO_ACK` must be recovered from IQ rather than guessed.
+
+If each repeated frame is loaded as a new TX payload, the two-bit PID should advance and wrap. Thus “identical” five-byte FIFO payloads can still produce a four-state PCF/CRC pattern on air. The community logs cannot reveal that because an nRF24 receiver removes PCF and CRC before returning the payload.
+
+This 97-bit model is not the supported interpretation of the initially captured remote. The underlying register/configuration evidence remains community-derived. The discrepancy between the nRF24L01+ compatibility description and the observed `2 Mbps`, no-PCF layout remains a hardware-identification question rather than a reason to force the local bits into the 97-bit model.
+
+### Relation to the legacy ShockBurst alternative
+
+The no-PCF form was retained as a falsifiable alternative before capture and now matches the analyzed local frames. It conflicts with Nordic's documented `1 Mbps`/`250 kbps` compatibility condition for that chip. The original silicon and register sequence have not been independently identified. Frame boundaries, CRC, and recovered actions determine the local interpretation; the name “ShockBurst” here describes the layout rather than proving a chip's configured compatibility mode.
 
 ### What a hardware nRF24 receiver hides
 
@@ -203,17 +295,12 @@ The five bytes printed by Arduino code are only the FIFO payload. A configured n
 
 `e7 e7 e7` is symmetric across bytes, and `0xe7` is also unchanged by bit reversal. That makes both address byte order and within-byte bit order impossible to infer from the configured value alone. Use the non-symmetric payload bytes and a known CRC to resolve serialization from IQ.
 
-### SDR transmit requirements still marked unknown
+### Remaining waveform and SDR transmit requirements
 
-- **[UNKNOWN]** Exact over-the-air bit order and byte order as observed by the selected SDR demodulator.
-- **[UNKNOWN]** Which discriminator polarity maps to logical 1; FSK inversion produces an equally plausible first decode.
-- **[UNKNOWN]** CRC byte order and any implementation-specific final presentation. The polynomial and seed are known, but the captured bitstream must validate the entire convention.
-- **[UNKNOWN]** Whether local IQ confirms the datasheet-consistent 97-bit Enhanced ShockBurst frame or instead reveals the 88-bit no-PCF alternative.
-- **[UNKNOWN]** Exact preamble representation in the SDR’s bit convention. Nordic chooses an alternating `0x55`/`0xaa` pattern based on the first address bit.
-- **[UNKNOWN]** Whether the finished transmitter adds any coding or whitening not visible in the FIFO view. Nordic’s documented packet format does not specify either, so the working expectation is neither; only raw IQ can promote that expectation to verified fact.
-- **[UNKNOWN]** Exact Gaussian pulse shaping/filter bandwidth, transmitter ramp behavior, and actual deviation of the finished remote. `±320 kHz` is the Nordic typical chip value, not a local measurement.
-- **[UNKNOWN]** Exact channel order, retune settling gap, repeat count distribution, and release-tail duration for the hand remote.
-- **[UNKNOWN]** Bridge modulation, symbol rate, frame format, addressing, CRC/checksum, and payload semantics. Its FCC bandwidth rules out assuming the hand-remote `2 Mbps` configuration.
+- **[LOCAL OBSERVED]** The analyzed remote uses the 88-bit no-PCF layout, MSB-first payload/CRC serialization, positive-frequency logical 1, and `0xaa` preamble in the recorded IQ convention. No whitening or extra coding is needed for its validated frames. Coverage of additional commands and remote revisions remains pending.
+- **[UNKNOWN]** Exact Gaussian pulse shaping/filter bandwidth and the physical cause of RF energy preceding the data frame. The approximate local `±359 kHz` deviation estimate does not establish calibrated transmitter deviation or a complete waveform-generation model.
+- **[LOCAL OBSERVED]/[UNKNOWN]** Cyclic channel order is observed in selected local intervals; per-action starting channel, retune settling, repeat-count distributions, and qualified release-tail timing remain incomplete.
+- **[LOCAL OBSERVED]/[UNKNOWN]** Bridge-command-correlated wide position frames use the decoded `2 Mbps`, 88-bit layout and the room/mask/position fields described above. The narrow FCC-tested signal's modulation, framing, and payload remain unknown, as does the emitting component of the local wide frames. These observations must not be collapsed into one assumed Bridge radio configuration.
 
 ## Rigorous local capture and validation plan
 
@@ -275,8 +362,8 @@ For each high-SNR burst:
 
 1. Estimate carrier offset and the two GFSK deviation peaks; verify approximately `2 Msymbol/s` and `±320 kHz` before slicing bits.
 2. Test both discriminator polarities and all plausible bit alignments against the alternating preamble and `e7 e7 e7` address.
-3. Test the datasheet-consistent 97-bit Enhanced ShockBurst form, including the 9-bit PCF and CRC over address, PCF, and payload. For repeated identical FIFO payloads, test the expected two-bit PID progression rather than assuming every RF frame is bit-identical.
-4. Also test the falsifiable 88-bit ShockBurst alternative, computing CRC-16 over address plus five payload bytes. Prefer neither merely because a demodulator happens to find a preamble; require consistent length and CRC evidence.
+3. Test the locally observed 88-bit no-PCF form, computing CRC-16 over address plus five payload bytes. Confirm preamble, payload alignment, and the end of the data-bearing RF interval as well as CRC.
+4. Retain the datasheet-based 97-bit Enhanced ShockBurst form as an alternative, including the 9-bit PCF and CRC over address, PCF, and payload. If this form is supported for a different remote, test PID progression rather than assuming repeated FIFO payloads produce identical RF frames. Do not accept a longer interpretation solely because CRC remains valid through a post-burst codeword extension.
 5. Accept a convention only when it validates CRC across all commands, all three channels, and multiple captures—not because one frame happens to match.
 6. Compare decoded payloads with the independent nRF24 capture and the known user action.
 
@@ -324,18 +411,20 @@ Promote an item from **[CAPTURE]** or **[INFERENCE]** to locally verified only w
 
 ## Open questions
 
-1. What are this installation’s two hand-remote identity bytes?
-2. Does local IQ confirm the expected 97-bit Enhanced ShockBurst frame and its PID progression, or reveal the 88-bit no-PCF alternative?
-3. What exact bit order, GFSK polarity, and CRC byte order appear in SDR output?
-4. What is the true channel order and inter-channel timing at the antenna?
+1. Does the privately recovered hand-remote identity remain consistent across all groups, holds, and additional sessions?
+2. Which original silicon or configuration explains this remote's observed `2 Mbps`, 88-bit no-PCF layout, and do other Platinum revisions share it?
+3. Do the observed MSB-first serialization, positive discriminator polarity, and CRC convention validate across the full capture matrix and an independent Nordic receiver?
+4. What are the per-action starting channel and reliable inter-channel timing distributions once sample continuity is established?
 5. How many rotations are necessary for reliable operation, and do shade models differ?
 6. What do release codes `0x21`/`0x22` do beyond marking button release?
 7. Are arbitrary group masks accepted, or is `0xff` a special broadcast code?
-8. Does `0x01 00 80` represent a real no-group packet, and when is it emitted?
+8. What triggers the locally observed `0x01 00 80` state, and does it specifically indicate no selected group?
 9. Are there legacy commands for stop, favorite/intermediate position, tilt, setup, enrollment, or scene recall?
 10. What modulation, symbol rate, framing, and payload does the narrowband App Bridge signal use?
 11. Does a Platinum repeater translate narrow bridge frames into the wide hand-remote waveform, and can a network request be correlated across both hops?
 12. Are there meaningful hand-remote/wall-switch differences among `UXURC4U`, `UXUWS4U`, and `UXURC4U2`?
+13. What do the position packet's `0x50` and `0x32` phases do at the receiving device, and which repeat/timing parameters are necessary for reliable interoperability?
+14. Do the observed position bytes and one-hot shade masks generalize beyond the tested values, target fields, and primary feature, and what physical feedback can establish successful motion?
 
 ## Provenance, credits, and licensing
 

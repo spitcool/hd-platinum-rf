@@ -16,8 +16,10 @@ The project treats the LAN protocol and the two distinct RF paths as separate re
 
 ## Documentation
 
+- [Laptop handoff](docs/handoff.md) — paused session status, current implementation, unresolved RF findings, and setup for continuing on another computer.
 - [LAN protocol](docs/lan-protocol.md) — byte-level framing, records, commands, feature codes, compatibility differences, and sanitized live evidence.
 - [RF protocol](docs/rf-protocol.md) — device-generation boundary, handheld payloads, PHY/framing hypotheses, bridge bandwidth evidence, and the capture/validation procedure.
+- [Local bridge prototype](docs/bridge-prototype.md) — private configuration, browser controls, authenticated HTTP commands, waveform generation, and the experimental bladeRF backend.
 - [Testing and validation](docs/testing.md) — reference environment, safe RF interconnects, automated tests, evidence gates, and objective project status.
 - [Bill of materials](docs/bom.md) — required quantities, reference parts, connector requirements, and optional bench expansions.
 - [Reference bench lab log](docs/lab-log.md) — sanitized capability qualifications and test history; useful project evidence, but not canonical requirements for other installations.
@@ -62,7 +64,7 @@ Build an offline payload using a fictional identity:
 hd-platinum rf-payload --remote-id aabb --groups 1 --action up
 ```
 
-The optional `--candidate-frame` output constructs a 97-bit Enhanced ShockBurst framing hypothesis for comparison with demodulated IQ. It is not an SDR waveform and does not transmit:
+The optional `--candidate-frame` output constructs a 97-bit Enhanced ShockBurst comparison hypothesis. Initial local IQ instead supports an 88-bit frame without PCF for the captured remote; this alternative builder is not an SDR waveform and does not transmit:
 
 ```sh
 hd-platinum rf-payload --remote-id aabb --groups all --action down --candidate-frame
@@ -70,9 +72,54 @@ hd-platinum rf-payload --remote-id aabb --groups all --action down --candidate-f
 
 Do not use another installation's two-byte identity. Capture the identity from the remote that is already paired with the shades.
 
+### Decode a saved IQ recording
+
+Install the optional analysis dependencies into the virtual environment:
+
+```sh
+python -m pip install -e '.[analysis]'
+```
+
+Decode little-endian signed 16-bit interleaved I/Q (SC16Q11), supplying the actual recorded sample rate and center frequency:
+
+```sh
+hd-platinum rf-iq-decode captures/remote.sc16q11 \
+  --sample-rate 48000000 --center 2452000000 \
+  --start 19 --duration 2 > captures/decoded.json
+```
+
+The experimental decoder searches `2433`, `2452`, and `2471 MHz` at `2 Mbps`, tests both polarities and both frame layouts, and checks preamble, CRC, and RF power through the frame tail. `--channels` accepts a comma-separated list of frequencies in Hz for a narrower recording. Input rates must be integer multiples of `8 MS/s`, up to `256 MS/s`; `--start` and `--duration` select a bounded interval. It reads files only and never opens the SDR.
+
+Output redacts the installation identity and identity-derived CRC by default. `--include-private` retains them for local research; keep that output under ignored `captures/` or `tmp/`. Ambiguous framing candidates receive additional redaction because misaligned fields can expose identity bits. Accepted-frame counts are not a packet-error-rate measurement, and raw files without timestamp/overrun metadata cannot establish lossless timing.
+
+Initial local decoding recovered Group 1 Up, Down, and both release codes using **88-bit, no-PCF frames** with valid CRCs. See the [local RF findings](docs/rf-protocol.md#initial-local-receive-result--2026-10-23) for the evidence scope and remaining validation gates.
+
+## Local bridge prototype
+
+The prototype exposes configured handheld groups and individual primary-position
+targets through a browser page and authenticated HTTP API at
+`127.0.0.1:8077`. Start with the dry-run backend and a private configuration:
+
+```sh
+hd-platinum bridge-serve --config tmp/bridge/config.private.json --backend dry-run
+```
+
+The [setup guide](docs/bridge-prototype.md) covers private configuration, explicit
+position controls, authenticated requests, offline waveform generation, and the
+bladeRF backends. Captures establish room identity, one-hot shade selection, and
+position values `0`, `128`, and `255`. Limited conducted packet checks have
+passed on all three frequencies. **SDR-to-shade operation remains unverified.**
+Position targets default to disabled until their mappings are validated; all
+receipts leave actual delivery and position unconfirmed. The RF backend does
+not call or depend on the original bridge at runtime.
+
 ## Testing environment
 
-Development uses offline, sanitized unit fixtures. RF validation uses a USB 3 SDR host, a wideband SDR, independent 2.4 GHz reference radios, a logic analyzer where safe to probe, and a protected 50-ohm SMA bench. The current software intentionally stops short of RF transmission.
+Development uses sanitized fixtures, mock hardware, and temporary loopback
+servers. The complete RF validation program includes a USB 3 SDR host, an
+independent 2.4 GHz reference receiver, and a protected 50-ohm SMA bench.
+Transmission remains experimental pending observed over-the-air operation and
+the remaining validation checks.
 
 The canonical test method and evidence status are in [Testing and validation](docs/testing.md), and required equipment and quantities are in the [Bill of materials](docs/bom.md). The [reference bench lab log](docs/lab-log.md) records sanitized capability checks and progress without defining requirements for other contributors.
 

@@ -3,7 +3,7 @@
 
 # Testing and validation
 
-Status review: 2026-10-13
+Status review: 2026-10-23
 
 This document defines the canonical repeatable test environment, safety rules, evidence gates, and project validation status. The [reference bench lab log](lab-log.md) records sanitized capability qualifications and test history, but it is explicitly non-canonical: another contributor may use different hardware that satisfies the requirements here and in the BOM. Private network addresses, serial numbers, local paths, shopping prices, and fulfillment details are not recorded in tracked documentation.
 
@@ -110,24 +110,54 @@ Run the offline suite from the repository root:
 PYTHONPATH=src python3 -m unittest discover -s tests -v
 ```
 
-The fixtures are synthetic and sanitized. They do not contact a bridge, move a shade, or transmit RF.
+The IQ receiver tests require the optional analysis dependencies. Install them into the Python environment used for testing, then rerun the suite:
 
-Result verified on 2026-10-13: **11 of 11 tests passed**.
+```sh
+python3 -m pip install -e '.[analysis]'
+PYTHONPATH=src python3 -m unittest discover -s tests -v
+```
+
+The fixtures are synthetic and sanitized. They do not contact an actual bridge,
+move a shade, or transmit RF. HTTP and LAN tests use temporary loopback servers,
+which require local socket-binding permission. The hardware backend uses a fake
+library in tests. Optional DSP tests are skipped when NumPy/SciPy are unavailable.
+
+Results verified on 2026-10-23:
+
+| Environment | Result |
+| --- | --- |
+| Python `3.9.6`, NumPy `1.26.4`, SciPy `1.13.1` | **129 of 129 tests passed**, no skips |
+| Python `3.15.0`, without the optional analysis dependencies | **108 passed; 21 optional DSP tests skipped** |
+
+The earlier 2026-10-13 baseline contained 11 passing tests; it predates the frame and IQ decoder tests.
 
 ## Public validation status
 
 | Area | Public status | Evidence or remaining gate |
 | --- | --- | --- |
-| Offline LAN/RF unit tests | **VERIFIED** | Eleven tests pass against synthetic, sanitized fixtures. |
-| LAN transport and inventory parsing | **LIVE-VERIFIED, READ-ONLY** | A sanitized bridge observation verifies TCP framing, banner handling, and `$dat`; see [LAN protocol](lan-protocol.md). |
-| Legacy handheld frequencies, radio settings, and five-byte payloads | **SOURCE-SUPPORTED** | Multiple community captures, implementations, Nordic documentation, and FCC exhibits agree; see [RF protocol](rf-protocol.md). |
+| Offline LAN/RF unit tests | **VERIFIED** | All 129 tests pass with the optional analysis dependencies against synthetic, sanitized fixtures. |
+| LAN transport, inventory, and primary position transaction | **COMMAND-LAYER VERIFIED** | Live queries verify framing/banner/`$dat`. One shade's midpoint and restore transactions returned acknowledgements and completion markers; those are not physical position feedback. |
+| Legacy handheld frequencies, radio settings, and five-byte payloads | **SOURCE-SUPPORTED; INITIAL LOCAL DECODING** | Local Group 1 Up/Down and following release-tail payloads validate against CRC; register settings and other groups still rely on source evidence. See [RF protocol](rf-protocol.md#initial-local-receive-result--2026-10-23). |
 | Reference RF bench topology | **DOCUMENTED** | BOM, connector map, attenuation, DC isolation, termination, and interlocks are specified here. Component characterization evidence is not yet published. |
-| Local handheld raw-IQ waveform | **PENDING EVIDENCE** | No sanitized capture set has yet established serialization, polarity, full framing, and CRC conventions. |
-| App Bridge RF waveform | **UNDECODED** | FCC bandwidth evidence establishes that it must be captured independently from the handheld waveform. |
-| SDR waveform transmission | **NOT IMPLEMENTED** | Remains gated on receive decoding and conducted validation. |
+| Local handheld raw-IQ waveform | **PARTIALLY VALIDATED, RECEIVE-ONLY** | Initial local frames support `2 Mbps`, 88 bits without PCF, MSB-first payload/CRC, and positive discriminator polarity. Private immutable IQ and decode evidence are retained; the full action matrix, qualified timing, public reproducibility package, and independent Nordic receiver cross-check remain pending. |
+| App Bridge command-triggered RF | **POSITION FIELDS CAPTURE-SUPPORTED** | Wide 2 Mbps packets correlate with positions `0`, `128`, and `255` across two room identities. Same-shade position comparisons and four same-room shade masks support the field mapping. Emitting component (bridge or repeater) and SDR interoperability remain unproven. |
+| SDR waveform transmission | **IMPLEMENTED; LIMITED CONDUCTED CHECKS** | Single-channel 8 MS/s tests recover 993/1,000, 1,000/1,000, and 1,000/1,000 expected packets across the three frequencies. Shade interoperability and independent receiver validation remain pending. |
+| Local HTTP bridge prototype | **SOFTWARE VERIFIED** | Authenticated group/position commands, disabled-by-default target mappings, serialized dispatch, idempotency, and shutdown have loopback/fake-backend tests. See [prototype guide](bridge-prototype.md). |
 | Control4 integration | **DEFERRED** | Phase 2, after reliable underlying control is demonstrated. |
 
 Public status describes reproducible technical evidence, not any contributor's private inventory or acquisition state.
+
+### Scope of the initial local receive result
+
+The 2026-10-23 session retained a 30-second background recording and a 60-second handheld recording at `48 MS/s`, with operator-confirmed Group 1 Up–Down twice. Both full files passed sample-range checks without clipping. Decoding recovered the direction commands and following release-tail codes with valid address-plus-payload CRCs. A second independently authored decoder and separate PHY measurements supported the initial interpretation. This is evidence for the captured remote; it does not complete the project-wide validation sequence.
+
+A complete scan recovered `21,585` carrier-supported, CRC-valid 88-bit frames across all three handheld channels, including `11,980` Group 1 direction/release frames. Independent bytewise CRC and zero-residue checks passed for all no-PCF frames. A complete scan of the 30-second background recording found no accepted frames under the same decoder settings. These results support the distinction between command traffic and background RF; they do not establish a general decoder success rate. One retained longer interpretation is a coincident CRC-codeword extension, reported as ambiguous rather than counted as another RF packet; see [RF framing](rf-protocol.md#locally-observed-framing-88-bits-without-pcf).
+
+The observed data frame is `44 µs` at `2 Mbps`, near the end of an approximately `93 µs` RF-energy burst. Roughly `49 µs` of earlier RF energy is not a second validated packet. The local estimated deviation is approximately `±359 kHz`; it is not a calibrated RF measurement. Sample-derived channel order agrees with `2433 → 2452 → 2471 MHz`, but cadence and release timing require further qualification.
+
+The raw SC16Q11 recordings contain no per-block timestamp or overrun metadata. A separate five-second FPGA-counter test at `48 MS/s` had no discontinuities; the `61.44 MS/s` test did. Consequently, a complete byte count or successful CLI exit is insufficient to establish lossless capture, and the short passing counter test must not be generalized to every subsequent IQ file. Use timestamp/overrun-aware recording and longer continuity checks before publishing timing distributions.
+
+No independent Nordic receiver or local SPI trace has yet cross-checked the decoded packets. The full Groups 1–4/All, tap/hold, and repeated-session matrix remains incomplete, and no general `≥99%` decode-success claim is made. The initial recordings were receive-only; subsequent protected transmissions are logged separately. Original IQ, SHA-256 hashes, settings, and private outputs remain under ignored storage; tracked documentation excludes recovered identities and their payload CRCs. See the [lab log](lab-log.md) for bench observations and [RF protocol](rf-protocol.md#initial-local-receive-result--2026-10-23) for the framing interpretation and limitations.
 
 ## Validation sequence
 
@@ -153,6 +183,8 @@ Publish a sanitized, reproducible handheld capture set and decoder result that e
 - agreement with an independent Nordic receiver.
 
 Bridge RF remains a separate capture and decoding milestone.
+
+The initial local Group 1 decoding provides a starting point for this milestone. It does not replace the broader action coverage, evidence publication, capture-continuity checks, or independent receiver agreement listed above.
 
 ## Evidence retention and publication
 

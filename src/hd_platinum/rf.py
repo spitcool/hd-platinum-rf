@@ -232,12 +232,12 @@ def build_esb_candidate_frame(
 ) -> EsbCandidateFrame:
     """Build a datasheet-shaped ESB frame for offline hypothesis testing.
 
-    The Platinum register dump reports 2 Mbps, so Nordic's documented
-    no-PCF ShockBurst compatibility mode does not apply. The six payload-length
-    PCF bits are semantically unused when dynamic payloads are disabled,
-    however, and their actual on-air value must be established from a capture.
-    This function defaults that candidate field to the real payload length but
-    allows all six bits to be varied explicitly.
+    Community register reports initially suggested this 97-bit comparison
+    model. Local IQ instead supports an 88-bit no-PCF layout for the captured
+    remote; this builder remains useful for testing the alternative hypothesis.
+    The six payload-length PCF bits are semantically unused with static payloads.
+    This function defaults them to the real payload length but permits all six
+    bits to be varied explicitly. It does not produce a transmit waveform.
     """
 
     if not 3 <= len(address) <= 5:

@@ -5,7 +5,7 @@
 
 Status: independently documented, incomplete, and unofficial
 
-Last evidence review: 2026-10-13
+Last evidence review: 2026-10-23
 
 Observed bridge: private-LAN address redacted, firmware banner `2018-HD gateway 2.18a`
 
@@ -18,6 +18,7 @@ All names and the bridge MAC address in the examples below are fictional. The li
 Protocol notes on old hardware tend to become folklore. Every claim in this document is therefore qualified by its evidence:
 
 - **LIVE** — observed byte-for-byte on the user's bridge during a non-mutating probe on 2026-10-13.
+- **CONTROLLED** — observed during bounded, operator-authorized primary-position transactions on 2026-10-23, with before/after inventory and timestamped RF capture. Command receipts do not establish motor position.
 - **N** — implemented by Aaron Taylor's [`node-hunterdouglas`](https://github.com/exPHAT/node-hunterdouglas), inspected at commit `9bb23b79ef6beb75b26885d70b5e175c8628ba77`.
 - **H** — implemented by Roland Schemers's [`homebridge-hunterdouglas-platinum`](https://github.com/schemers/homebridge-hunterdouglas-platinum), version 2.1.0, inspected at commit `1bdd2cba5ef293da08bb4b6608421a306c64e83c`.
 - **A** — implemented or asserted by James Wilkinson's [`aio-powerrise-api`](https://pypi.org/project/aio-powerrise-api/0.1.0.dev3/), version 0.1.0.dev3.
@@ -25,7 +26,10 @@ Protocol notes on old hardware tend to become folklore. Every claim in this docu
 - **INFERRED** — a conservative interpretation supported by evidence, but not directly demonstrated.
 - **UNKNOWN** — observed or source-listed, but its meaning or behavior is not established.
 
-“Source-derived” does not mean “verified on this firmware.” In particular, no mutating command was sent during the live probe.
+“Source-derived” does not mean “verified on this firmware.” The original live
+probe was non-mutating; later controlled feature-`04` transactions are explicitly
+marked below. Other actuation, configuration, and pairing commands remain
+source-derived unless stated otherwise.
 
 ## Executive summary
 
@@ -36,7 +40,7 @@ Protocol notes on old hardware tend to become folklore. Every claim in this docu
 - **LIVE:** Sending exact, delimiter-free `$dmy` after consuming the banner produced no bridge bytes during an approximately seven-second observation window. A terminal display of `$dmy` was local PTY echo, not a device response.
 - **LIVE:** Most response records begin with a decimal connection number and one ASCII space. The initial capture recorded a bare firmware/version line; a later end-to-end client check returned the same text as `$firm03-...`. Treat both the connection prefix and the firmware wrapper as version-dependent.
 - **N, H, G:** Requests can be sent without a line ending. **A** appends CR LF; that dialect was not tested live and should not be treated as the canonical framing.
-- **H, A, G:** Shade movement is a staged operation: send one or more position commands, receive `$done` for each, then send `$rls` to release/execute them.
+- **CONTROLLED, H, A, G:** Send a position command, wait for `$done`, then send `$rls` and observe the action lifecycle. The controlled sessions received `$act01-00-` and a `$cp` update during the position call, before `$done`; command acceptance can precede release, and RF-start semantics are not isolated.
 - **LIVE, N, H, A, G:** There is no TLS. The read-only live session had no authentication exchange; all community implementations also send mutating commands without authentication. Keep port 522 restricted to a trusted LAN.
 
 ## Network endpoint and discovery
@@ -206,7 +210,10 @@ Even `$dat` exposes household names and a hardware address. Treat captures as se
 
 ## Runtime actuation commands
 
-These commands can move physical equipment. Their formats are source-derived and were **not** sent during the live probe.
+These commands can move physical equipment. Bounded, single-shade feature-`04`
+position/release transactions were tested on 2026-10-23. The original probe was
+non-mutating; room, scene, stop, jog, and other feature operations below remain
+source-derived unless explicitly marked.
 
 ### Position one shade
 
@@ -221,12 +228,18 @@ Examples with fictional IDs:
 ```text
 $pss03-04-000-    primary feature fully closed
 $pss03-04-255-    primary feature fully open
-$pss03-04-128-    primary feature approximately 50%
+$pss03-04-128-    raw midpoint under the source clients' percent conversion
 ```
 
-H omits the final hyphen, while A and G include it; N also constructs a no-final-hyphen form. Both variants therefore have community precedent. Prefer the final hyphen for a canonical encoder, but make a decoder tolerant.
+H omits the final hyphen, while A and G include it; N also constructs a
+no-final-hyphen form. **CONTROLLED:** the final-hyphen form above, sent as bare
+ASCII with no CR/LF, returned `$done` for requested values `0`, `128`, and `255`.
+The no-final-hyphen actuation variant was not tested locally.
 
-**H, A, G:** a normal position command produces `$done`. Queueing more than one `$pss` before release is supported by the clients and is how a group of shades can be staged.
+**CONTROLLED, H, A, G:** a position command produces `$done`. The observed order
+was action-start and position-update records, then `$done`; these can be
+coalesced in one TCP read. Queueing multiple `$pss` commands before release is
+supported by source clients but was not part of the single-target local tests.
 
 ### Release a staged shade operation
 
@@ -244,6 +257,15 @@ Source behavior differs slightly:
 - A sends `$rls` without waiting and describes later `$act...` records as unsolicited movement events.
 
 The compatible interpretation is: `$rls` has no small, dedicated acknowledgement; action records report the resulting bridge activity and may also describe actions initiated by another client.
+
+**CONTROLLED:** one `$rls` followed each acknowledged position request, and the
+client observed `$act00-00-` with a finite timeout. No automatic retry or restore
+was performed by the transaction primitive. Separately requested restore
+transactions were journaled as new requests. Later inventories reported the
+requested raw values, but those values are bridge state, not independent motor
+feedback. RX was armed before both position and release after the initial
+capture showed activity during position staging. A measured delay between the
+two commands would be needed to isolate their RF effects.
 
 ### Position a room
 
@@ -292,12 +314,12 @@ All examples may be preceded by the optional `N ` connection prefix.
 
 | Record | Meaning | Evidence |
 |---|---|---|
-| `$done` | Command accepted/completed at the bridge-command layer; used after `$pss`, date, and time operations | H, A, G |
+| `$done` | Command accepted/completed at the bridge-command layer; locally observed after `$pss`; date/time use remains source-derived | CONTROLLED, H, A, G |
 | `$ack` | Acknowledgement, associated with `$dmy` by G and one A code path | A, G; not returned by the live bridge within ~7 seconds |
 | `$errorNN-` | Error with two-digit code | A; meanings of codes `00`–`09` are unknown |
-| `$act01-00-` | Start of an action | G |
-| `$act02-RR-...` | Action in room `RR` | G |
-| `$act00-00-` | End of action | H, A, G |
+| `$act01-00-` | Action-start record; locally arrived before the position call's `$done` | CONTROLLED, G |
+| `$act02-RR-...` | Room-action record; local raw records included a leading-NUL variant | CONTROLLED, G |
+| `$act00-00-` | End of the reported action lifecycle; not a motor-position acknowledgement | CONTROLLED, H, A, G |
 
 Action events are not correlated to a request ID. A client that shares the bridge with the legacy app or another controller must be prepared to see action events that it did not initiate.
 
@@ -425,7 +447,11 @@ A instead documents `$caII-HH-MM-DD-EE-`. These interpretations conflict, and no
 
 ### Raw value conversion
 
-For the ordinary primary feature (`04`), all implementations use a raw range of 0–255:
+For the ordinary primary feature (`04`), inspected source clients use a native
+range of 0–255. H explicitly converts HomeKit percentages using the following
+mapping in its [pinned platform source](https://github.com/schemers/homebridge-hunterdouglas-platinum/blob/1bdd2cba5ef293da08bb4b6608421a306c64e83c/src/platform.ts#L393-L407),
+then formats that native integer directly into `$pss` in its
+[controller](https://github.com/schemers/homebridge-hunterdouglas-platinum/blob/1bdd2cba5ef293da08bb4b6608421a306c64e83c/src/controller.ts#L102-L109):
 
 ```text
 wire = round(percent * 255 / 100)
@@ -434,12 +460,20 @@ percent = round(wire * 100 / 255)
 
 The source convention is `000 = closed` and `255 = open` for an ordinary bottom-up shade. Feature semantics vary by room/product type, so this conversion alone is insufficient for dual-rail and vane products.
 
+**CONTROLLED:** requests `0`, `128`, and `255` were acknowledged and appeared
+in later inventories. Correlated RF payloads contain `00`, `80`, and `FF`;
+on the same target, requests `128` and `0` changed only the last payload byte.
+This supports the raw command scale, including a middle value, but does not
+calibrate physical travel or establish every value. The proposed alternative
+of ordinary values `0–100` plus a special `255` endpoint is not how H generates
+commands. See the [position RF observations](rf-protocol.md#position-packets-correlated-with-original-bridge-commands--2026-10-23).
+
 ### Known feature codes
 
 | Code | Source-derived meaning | Notes |
 |---|---|---|
 | `01` | Sync status/operation | Seen in G's common feature table; command procedure not established |
-| `04` | Primary rail, bottom-up motion, or traverse | LIVE for state; N, H, A, G for control |
+| `04` | Primary rail, bottom-up motion, or traverse | LIVE for inventory; CONTROLLED for bounded single-target requests; N, H, A, G |
 | `07` | Vane/tilt or Luminette “close right” | A, G |
 | `10` | Intermediate preset/stop | A and G disagree on exact semantics/value |
 | `12` | Test/jog | A, G |
@@ -544,7 +578,8 @@ Community clients use timeouts between roughly 15 and 30 seconds for command/sna
 - **Prefix rollover:** a connection number of 10 or higher would break fixed-width prefix removal. Use a decimal regex/state machine.
 - **Binary `$ct`:** source parsers assume text; the live record was not safe UTF-8. Store raw bytes.
 - **Names with hyphens:** naive `split('-')` parsing truncates them. Parse fixed headers, then consume the tail unchanged.
-- **Trailing command hyphen:** both forms exist in source. `$dat` without it is live-proven; `$pss` was not live-tested.
+- **Trailing command hyphen:** both forms exist in source. Bare `$dat` and final-hyphen `$pssII-04-PPP-` are locally observed; other endings remain untested.
+- **Leading NUL bytes:** controlled captures retained a room-action record preceded by 30 NUL bytes before its decimal connection prefix. The initial parser preserved it as unknown. Retain raw bytes and handle this separately from ordinary prefix removal.
 - **`$dmy` response:** the live bridge was silent for approximately seven seconds. Some source paths wait for `$ack`; another treats it as fire-and-forget. Do not block the command queue waiting for `$ack` on firmware 2.18a.
 - **`$rls` response:** treat `$act...` as an asynchronous action lifecycle, not as a uniquely correlated reply.
 - **State from handheld RF remotes:** G's author reported that the integration could observe actions from the mobile app but not necessarily from handheld remotes. The legacy shades/bridge may not provide true two-way position feedback for all control paths.
@@ -558,8 +593,8 @@ The following should remain explicitly unresolved until captured:
 1. Meaning and structure of the 24-byte live `$ct...$` payload.
 2. Meaning of `$set006-`.
 3. Whether `$dmy` ever emits a delayed `$ack`, and whether behavior changes with request terminator or firmware. The current bare-command capture was silent for ~7 seconds.
-4. Which request endings are accepted for commands other than `$dat`.
-5. Exact `$pss` → `$done` → `$rls` → `$act` timing and whether all events appear on this firmware.
+4. Which request endings are accepted beyond observed bare `$dat` and final-hyphen feature-`04` `$pss`.
+5. The distinct RF effects of `$pss` and `$rls`: action-start and position-update records arrived before `$done`, but the local calls did not deliberately separate staging and release long enough to assign RF-start semantics.
 6. Error-code meanings for `$errorNN-`.
 7. Scene and schedule record layouts from this specific bridge configuration.
 8. Feature `07`, `18`, and `19` behavior for the installed products.
@@ -579,7 +614,16 @@ Avoid room/shade database commands and the bootloader token during discovery.
 
 ## Using the LAN protocol as an RF oracle
 
-The LAN IDs are bridge database indexes, not yet proven to be RF addresses. Nevertheless, synchronized captures can establish a mapping:
+The LAN shade IDs are bridge database indexes, not directly observed RF
+addresses. **CONTROLLED:** the wide received position packets instead contain
+the room's inventory RF identifier and a one-hot shade mask consistent with
+`1 << (group_field - 1)`. Four targets in one room independently support that
+mask mapping. A same-target `128 → 0` comparison changes the last payload byte
+from `80 → 00`; another room's raw `255` request has `FF`. These observations
+are summarized in the [RF specification](rf-protocol.md#position-packets-correlated-with-original-bridge-commands--2026-10-23),
+with emitter and physical-response limitations retained.
+
+The capture relation is:
 
 ```text
 timestamp

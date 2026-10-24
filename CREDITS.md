@@ -37,6 +37,12 @@ This project depends on years of community investigation. The goal of this file 
 - **Marc Newlin / Bastille Research — [gr-nordic](https://github.com/BastilleResearch/gr-nordic)**. GNU Radio receiver/transmitter reference for Nordic Enhanced ShockBurst. Inspected at commit `5c468607118e2857d6920708618860ba1a9ea532`. Source headers state GPL-3.0-or-later; the root license is GPLv3. Its parser/transmitter has offsets specialized around a five-byte address in the inspected revision, so it should not be assumed to support this protocol's three-byte address without review and testing.
 - **kittennbfive — [gr-nrf24-sniffer](https://github.com/kittennbfive/gr-nrf24-sniffer)**. Current GNU Radio/HackRF receiver and C decoder supporting 2 Mbps, fixed payload size, CRC-16, and configurable 3–5-byte addresses; its documentation says address sizes other than five are untested. AGPL-3.0-or-later, copyright 2022–2026 kittennbfive. It is a promising receive-side validation tool, not incorporated code.
 
+## Optional IQ-analysis dependencies
+
+- **[NumPy](https://numpy.org/)**, tested at `1.26.4`, and **[SciPy](https://scipy.org/)**, tested at `1.13.1`, provide array operations, FIR filter design, and polyphase resampling through their public APIs. Both projects use the BSD 3-Clause license; their installed distributions retain their own copyright notices and bundled-component licenses. They are declared as the optional `analysis` dependency group, not vendored into this repository. No NumPy, SciPy, or third-party demodulator source was copied into the independently authored receiver.
+
+The receive decoder and its synthetic fixtures were developed from the documented framing hypotheses and the local 2026-10-23 IQ. Independent polynomial division and Python's `binascii.crc_hqx` cross-checked the CRC implementation. Synthetic test identities are fictional; captured identities and their CRCs are excluded from tracked fixtures.
+
 ## Primary technical and regulatory sources
 
 - **Nordic Semiconductor — [nRF24L01+ Product Specification v1.0](https://docs-be.nordicsemi.com/bundle/nRF24L01P_PS_v1.0/raw/resource/enus/nRF24L01P_PS_v1.0.pdf)** and [nRF24LU1+ Product Specification v1.1](https://docs-be.nordicsemi.com/bundle/nRF24LU1P_PS_v1.1/raw/resource/enus/nRF24LU1P_PS_v1.1.pdf). GFSK PHY, channel mapping, packet control field, CRC, timing, ShockBurst compatibility, and the repeater radio's integrated USB/transceiver architecture. Technical facts are paraphrased; the documents are not redistributed.
@@ -60,6 +66,24 @@ This project depends on years of community investigation. The goal of this file 
 
 ## Local observations
 
+The finite SDR backend uses the public API and ABI declared by Nuand's
+[libbladeRF 2025.10 header](https://github.com/Nuand/bladeRF/blob/2025.10/host/libraries/libbladeRF/include/libbladeRF.h),
+its [bladeRF 2.0 stream implementation](https://github.com/Nuand/bladeRF/blob/2025.10/host/libraries/libbladeRF/src/board/bladerf2/common.c),
+and Analog Devices' [AD9361 driver API](https://github.com/analogdevicesinc/no-OS/blob/main/drivers/rf-transceiver/ad9361/ad9361_api.c).
+These establish metadata layouts, finite-burst flushing, shared sample clocks,
+and stream limits. The ctypes wrapper and lifecycle tests are independently
+authored; no driver source is copied. The installed ABI is libbladeRF 2.6.
+
 A sanitized read-only bridge observation on 2026-10-13 established TCP port 522, captured the banner and an initial `$dat` response, performed a second read-only `$dat` query while validating the client, and checked `$dmy` without receiving a device reply in the observation window. The private network address, household names, and real MAC address are deliberately excluded from the repository.
+
+The receive-only session on 2026-10-23 retained original, hashed IQ and recovered Group 1 Up, Down, and following release-tail packets. Local framing and PHY observations are documented with their limits in [RF protocol](docs/rf-protocol.md#initial-local-receive-result--2026-10-23) and [Testing and validation](docs/testing.md). The raw recordings and installation identity remain private.
+
+Later protected transmissions and command-correlated bridge recordings support
+the separately documented position payload layout. The phase values, room
+identity comparison, one-hot selector mapping, and position-byte observations
+come from retained local IQ and controlled LAN commands. Synthetic fixture
+identities and CRCs are fictional. Observing command traffic does not establish
+which bridge/repeater component emitted it or prove replacement-transmitter
+interoperability with a shade.
 
 All errors in this synthesis are this project's responsibility, not those of the credited authors.
