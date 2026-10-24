@@ -1,0 +1,5 @@
+(version 1)
+(rule "RF feed fixed width"
+  (condition "A.Type == 'Track' && A.NetName == 'ANT'")
+  (constraint track_width (min 0.35) (max 0.35))
+  (constraint clearance (min 0.50)))

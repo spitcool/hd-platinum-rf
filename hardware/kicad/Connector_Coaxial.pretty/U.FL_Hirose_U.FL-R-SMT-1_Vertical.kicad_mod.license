@@ -1,0 +1,8 @@
+SPDX-FileCopyrightText: 2026 KiCad Community
+SPDX-FileCopyrightText: 2026 Christopher Spitler
+SPDX-License-Identifier: CC-BY-SA-4.0 WITH KiCad-libraries-exception
+
+Modified from kicad-footprints 9.0.7-1: enabled allow_soldermask_bridges.
+No pad, mask-opening drawing or copper-keepout geometry changed.
+Upstream: https://gitlab.com/kicad/libraries/kicad-footprints
+See hardware/LICENSE.md and hardware/references/KiCad-Libraries-LICENSE.md.

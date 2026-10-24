@@ -124,20 +124,45 @@ class PositionTransactionTests(unittest.TestCase):
         self.assertTrue(all(0 < value <= .5 for value in fake.timeouts))
 
     def test_partial_old_completion_cannot_complete_trigger(self):
+        for padding in (b"", b"\x00" * 30):
+            with self.subTest(padding=padding):
+                fake = FakeSocket([
+                    b"1 HunterDouglas Shade Controller\n\r",
+                    b"1 $done\n\r" + padding + b"1 $act00-",
+                    b"00-\n\r1 $act01-00-\n\r",
+                    b"1 $act00-00-\n\r",
+                ])
+                with patch("hd_platinum.lan_control.socket.create_connection", return_value=fake):
+                    with self.transaction() as tx:
+                        tx.stage()
+                        result = tx.trigger()
+                        actions = [e for e in tx.events if e.kind == "action"]
+                        self.assertEqual([e.preexisting_partial for e in actions], [True, False, False])
+                        self.assertTrue(result["action_end_observed"])
+                self.assertEqual(len(fake.seen_before_reads), 4)
+
+    def test_padded_room_and_end_markers_complete_one_transaction(self):
+        room = b"\x00" * 30 + b"107 $act02-00-"
+        end = b"\x00" * 30 + b"107 $act00-00-"
         fake = FakeSocket([
-            b"1 HunterDouglas Shade Controller\n\r",
-            b"1 $done\n\r1 $act00-",
-            b"00-\n\r1 $act01-00-\n\r",
-            b"1 $act00-00-\n\r",
+            b"107 HunterDouglas Shade Controller\n\r",
+            b"107 $done\n\r",
+            room + b"\n\r" + end[:18],
+            end[18:] + b"\n\r107 $ack\n\r",
         ])
         with patch("hd_platinum.lan_control.socket.create_connection", return_value=fake):
             with self.transaction() as tx:
                 tx.stage()
                 result = tx.trigger()
-                actions = [e for e in tx.events if e.kind == "action"]
-                self.assertEqual([e.preexisting_partial for e in actions], [True, False, False])
+                self.assertEqual(result["state"], "completed")
                 self.assertTrue(result["action_end_observed"])
-        self.assertEqual(len(fake.seen_before_reads), 4)
+                actions = [event for event in tx.events if event.kind == "action"]
+                self.assertEqual([event.action_phase for event in actions], [2, 0])
+                self.assertEqual([event.record.raw for event in actions], [room, end])
+                self.assertEqual(actions[-1].as_dict(include_raw=True)["raw_hex"], end.hex())
+                self.assertEqual(tx.events[-1].record.payload, b"$ack")
+        self.assertEqual(fake.sent, [b"$pss03-04-255-", b"$rls"])
+        self.assertTrue(fake.closed)
 
     def test_complete_old_action_event_is_not_reused_after_release(self):
         fake = FakeSocket([

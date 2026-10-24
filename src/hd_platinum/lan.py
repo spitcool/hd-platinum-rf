@@ -25,6 +25,11 @@ END_OF_UPDATE = b"$upd01-"
 MAX_SNAPSHOT_BYTES = 1 << 20
 
 _PREFIX_RE = re.compile(rb"^([0-9]+) (.*)$", re.DOTALL)
+# Controlled captures include NUL padding before these action records. Keep
+# normalization limited to their complete grammar so opaque binary data survives.
+_PADDED_ACTION_RE = re.compile(
+    rb"\x00+(?:([0-9]+) )?(\$act(?:00-00-|01-00-|02-[0-9]{2}-))"
+)
 _BANNER_RE = re.compile(rb"^HunterDouglas Shade Controller$")
 _ROOM_RE = re.compile(rb"^\$cr([0-9]{2})-([0-9]{2})-(0x[0-9A-Fa-f]{4})-(.*)$", re.DOTALL)
 _SHADE_RE = re.compile(rb"^\$cs([0-9]{2})-([0-9]{2})-([0-9]{2})-(.*)$", re.DOTALL)
@@ -59,7 +64,8 @@ class BridgeRecord:
     """One LF-CR-delimited server record.
 
     ``raw`` contains the record before prefix handling. ``payload`` has an
-    optional decimal connection prefix removed. Neither includes LF-CR.
+    optional decimal connection prefix removed. Leading NUL padding is also
+    removed from recognized action records. Neither includes LF-CR.
     """
 
     raw: bytes
@@ -68,6 +74,11 @@ class BridgeRecord:
 
     @classmethod
     def from_raw(cls, raw: bytes) -> "BridgeRecord":
+        padded_action = _PADDED_ACTION_RE.fullmatch(raw)
+        if padded_action is not None:
+            prefix, payload = padded_action.groups()
+            return cls(raw=raw, payload=payload,
+                       connection_id=int(prefix) if prefix is not None else None)
         match = _PREFIX_RE.fullmatch(raw)
         if match is None:
             return cls(raw=raw, payload=raw)

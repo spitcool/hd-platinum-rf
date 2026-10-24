@@ -1,0 +1,174 @@
+{
+  "passed": true,
+  "checks_passed": 41,
+  "board_sha256": "7e5922e1767d6735b2ce64764767a85d315e6c77d609ce4797d04cc0802ec12e",
+  "schematic_sha256": "84944ec010a064cda437517be6a5932b2a3c303c9b7c02c0ae3dbbffcf41ea13",
+  "assembled_parts": 19,
+  "smt_placements": 18,
+  "checks": [
+    {
+      "check": "Native DRC, connectivity and schematic parity are clear",
+      "passed": true
+    },
+    {
+      "check": "Native ERC is clear",
+      "passed": true
+    },
+    {
+      "check": "Mechanical report matches final PCB",
+      "passed": true
+    },
+    {
+      "check": "Independent schematic graph matches 65 pins and 17 nets",
+      "passed": true
+    },
+    {
+      "check": "BOM has exactly 19 physical parts",
+      "passed": true
+    },
+    {
+      "check": "BOM manufacturers and MPNs match design",
+      "passed": true
+    },
+    {
+      "check": "Placement file has exactly 18 SMT parts, all bottom",
+      "passed": true
+    },
+    {
+      "check": "Placement coordinates match native CAD",
+      "passed": true
+    },
+    {
+      "check": "Library checksum C_0603_1608Metric.kicad_mod",
+      "passed": true
+    },
+    {
+      "check": "Library checksum C_0805_2012Metric.kicad_mod",
+      "passed": true
+    },
+    {
+      "check": "Library checksum C_1206_3216Metric.kicad_mod",
+      "passed": true
+    },
+    {
+      "check": "Library checksum U.FL_Hirose_U.FL-R-SMT-1_Vertical.kicad_mod",
+      "passed": true
+    },
+    {
+      "check": "Library checksum L_0603_1608Metric.kicad_mod",
+      "passed": true
+    },
+    {
+      "check": "Library checksum SOT-23-5.kicad_mod",
+      "passed": true
+    },
+    {
+      "check": "Library checksum R_0603_1608Metric.kicad_mod",
+      "passed": true
+    },
+    {
+      "check": "Library checksum TestPoint_Pad_D1.0mm.kicad_mod",
+      "passed": true
+    },
+    {
+      "check": "Fabrication file F_Cu.gtl",
+      "passed": true
+    },
+    {
+      "check": "Fabrication file In1_Cu.g1",
+      "passed": true
+    },
+    {
+      "check": "Fabrication file In2_Cu.g2",
+      "passed": true
+    },
+    {
+      "check": "Fabrication file B_Cu.gbl",
+      "passed": true
+    },
+    {
+      "check": "Fabrication file F_Mask.gts",
+      "passed": true
+    },
+    {
+      "check": "Fabrication file B_Mask.gbs",
+      "passed": true
+    },
+    {
+      "check": "Fabrication file F_Silkscreen.gto",
+      "passed": true
+    },
+    {
+      "check": "Fabrication file B_Silkscreen.gbo",
+      "passed": true
+    },
+    {
+      "check": "Fabrication file B_Paste.gbp",
+      "passed": true
+    },
+    {
+      "check": "Fabrication file Edge_Cuts.gm1",
+      "passed": true
+    },
+    {
+      "check": "Fabrication file PTH.drl",
+      "passed": true
+    },
+    {
+      "check": "Fabrication file NPTH.drl",
+      "passed": true
+    },
+    {
+      "check": "Fabrication file job.gbrjob",
+      "passed": true
+    },
+    {
+      "check": "Drill hit count PTH.drl",
+      "passed": true
+    },
+    {
+      "check": "Drill hit count NPTH.drl",
+      "passed": true
+    },
+    {
+      "check": "Gerber archive matches loose files",
+      "passed": true
+    },
+    {
+      "check": "Review output schematic.pdf",
+      "passed": true
+    },
+    {
+      "check": "Review output assembly-bottom.pdf",
+      "passed": true
+    },
+    {
+      "check": "Review output fabrication-drawing.pdf",
+      "passed": true
+    },
+    {
+      "check": "Review output carrier-board-only.step",
+      "passed": true
+    },
+    {
+      "check": "Review output board-outline.dxf",
+      "passed": true
+    },
+    {
+      "check": "Review output electrical-test.ipc",
+      "passed": true
+    },
+    {
+      "check": "Review output pcb-bottom.svg",
+      "passed": true
+    },
+    {
+      "check": "Review output pcb-top.svg",
+      "passed": true
+    },
+    {
+      "check": "No DRC exclusions",
+      "passed": true
+    }
+  ]
+}

@@ -1,0 +1,498 @@
+{
+  "name": "hd-platinum-carrier-rev-a",
+  "revision": "A",
+  "status": "ENGINEERING FIRST ARTICLE - NOT PRODUCTION RELEASED",
+  "date": "2026-10-24",
+  "board_mm": [
+    50,
+    50,
+    1.6
+  ],
+  "stackup": {
+    "name": "JLC04161H-7628",
+    "copper_mm": [
+      0.035,
+      0.0152,
+      0.0152,
+      0.035
+    ],
+    "dielectric_mm": [
+      0.2104,
+      1.065,
+      0.2104
+    ],
+    "epsilon_r": [
+      4.4,
+      4.6,
+      4.4
+    ],
+    "rf_width_mm": 0.35,
+    "rf_clearance_mm": 0.5
+  },
+  "components": [
+    {
+      "ref": "J1",
+      "value": "M5-Bus A089",
+      "mpn": "A089",
+      "manufacturer": "M5Stack",
+      "footprint": "HDPlatinum:M5Bus_A089_2x15",
+      "at": [
+        45.32,
+        7.22,
+        0
+      ],
+      "side": "B-TH",
+      "pins": {
+        "1": "GND",
+        "2": "RF_IRQ",
+        "3": "GND",
+        "4": "MISO_HOST",
+        "5": "GND",
+        "8": "MOSI_HOST",
+        "12": "HOST_3V3",
+        "15": "CSN_HOST",
+        "16": "CE_HOST",
+        "21": "SCK_HOST",
+        "28": "BUS_5V"
+      },
+      "note": "Housing on bottom; male tails toward CoreS3 SE. 1 piece from A089 10-pack."
+    },
+    {
+      "ref": "U1",
+      "value": "RF2401F20",
+      "mpn": "RF2401F20",
+      "manufacturer": "NiceRF",
+      "supplier_code": "LCSC C5126685",
+      "footprint": "HDPlatinum:NiceRF_RF2401F20",
+      "at": [
+        21,
+        18.51,
+        0
+      ],
+      "side": "B",
+      "pins": {
+        "1": "RF_3V3",
+        "2": "GND",
+        "3": "RF_CE",
+        "4": "RF_CSN",
+        "5": "RF_SCK",
+        "6": "RF_MOSI",
+        "7": "RF_MISO",
+        "8": "RF_IRQ",
+        "9": "GND",
+        "10": "GND",
+        "11": "ANT"
+      },
+      "note": "No RF2401PRO/Si24R1 substitutions. Shield outward. RF_PWR <=2; start at0."
+    },
+    {
+      "ref": "J2",
+      "value": "U.FL",
+      "mpn": "U.FL-R-SMT-1(10)",
+      "manufacturer": "Hirose",
+      "footprint": "Connector_Coaxial:U.FL_Hirose_U.FL-R-SMT-1_Vertical",
+      "at": [
+        6.5,
+        13.53,
+        0
+      ],
+      "side": "B",
+      "pins": {
+        "1": "ANT",
+        "2": "GND"
+      }
+    },
+    {
+      "ref": "U2",
+      "value": "TLV75533PDBVR",
+      "mpn": "TLV75533PDBVR",
+      "manufacturer": "Texas Instruments",
+      "footprint": "Package_TO_SOT_SMD:SOT-23-5",
+      "at": [
+        29,
+        34,
+        0
+      ],
+      "side": "B",
+      "pins": {
+        "1": "LDO_IN",
+        "2": "GND",
+        "3": "HOST_3V3",
+        "4": null,
+        "5": "RF_3V3"
+      }
+    },
+    {
+      "ref": "FB1",
+      "value": "600R@100MHz",
+      "mpn": "BLM18AG601SN1D",
+      "manufacturer": "Murata",
+      "footprint": "Inductor_SMD:L_0603_1608Metric",
+      "at": [
+        36,
+        34,
+        0
+      ],
+      "side": "B",
+      "pins": {
+        "1": "BUS_5V",
+        "2": "LDO_IN"
+      }
+    },
+    {
+      "ref": "C1",
+      "value": "10uF 25V X5R",
+      "mpn": "CL21A106KAYNNNE",
+      "manufacturer": "Samsung",
+      "footprint": "Capacitor_SMD:C_0805_2012Metric",
+      "at": [
+        32.5,
+        33,
+        90
+      ],
+      "side": "B",
+      "pins": {
+        "1": "LDO_IN",
+        "2": "GND"
+      },
+      "supplier_code": "LCSC C15850"
+    },
+    {
+      "ref": "C2",
+      "value": "100nF 50V X7R",
+      "mpn": "CL10B104KB8NNNC",
+      "manufacturer": "Samsung",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "at": [
+        32,
+        36.3,
+        0
+      ],
+      "side": "B",
+      "pins": {
+        "1": "LDO_IN",
+        "2": "GND"
+      },
+      "supplier_code": "LCSC C1591"
+    },
+    {
+      "ref": "C3",
+      "value": "10uF 25V X5R",
+      "mpn": "CL21A106KAYNNNE",
+      "manufacturer": "Samsung",
+      "footprint": "Capacitor_SMD:C_0805_2012Metric",
+      "at": [
+        25.5,
+        33,
+        90
+      ],
+      "side": "B",
+      "pins": {
+        "1": "RF_3V3",
+        "2": "GND"
+      },
+      "supplier_code": "LCSC C15850"
+    },
+    {
+      "ref": "C4",
+      "value": "47uF 10V X5R",
+      "mpn": "CL31A476MPHNNNE",
+      "manufacturer": "Samsung",
+      "footprint": "Capacitor_SMD:C_1206_3216Metric",
+      "at": [
+        33.7,
+        10,
+        180
+      ],
+      "side": "B",
+      "pins": {
+        "1": "RF_3V3",
+        "2": "GND"
+      },
+      "supplier_code": "LCSC C96123"
+    },
+    {
+      "ref": "C5",
+      "value": "100nF 50V X7R",
+      "mpn": "CL10B104KB8NNNC",
+      "manufacturer": "Samsung",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "at": [
+        33.9,
+        13.7,
+        180
+      ],
+      "side": "B",
+      "pins": {
+        "1": "RF_3V3",
+        "2": "GND"
+      },
+      "supplier_code": "LCSC C1591"
+    },
+    {
+      "ref": "R1",
+      "value": "33R 1%",
+      "mpn": "RC0603FR-0733RL",
+      "manufacturer": "Yageo",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "at": [
+        37.5,
+        23,
+        0
+      ],
+      "side": "B",
+      "pins": {
+        "1": "CE_HOST",
+        "2": "RF_CE"
+      }
+    },
+    {
+      "ref": "R2",
+      "value": "33R 1%",
+      "mpn": "RC0603FR-0733RL",
+      "manufacturer": "Yageo",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "at": [
+        37.5,
+        20,
+        0
+      ],
+      "side": "B",
+      "pins": {
+        "1": "CSN_HOST",
+        "2": "RF_CSN"
+      }
+    },
+    {
+      "ref": "R3",
+      "value": "33R 1%",
+      "mpn": "RC0603FR-0733RL",
+      "manufacturer": "Yageo",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "at": [
+        37.5,
+        27,
+        0
+      ],
+      "side": "B",
+      "pins": {
+        "1": "SCK_HOST",
+        "2": "RF_SCK"
+      }
+    },
+    {
+      "ref": "R4",
+      "value": "33R 1%",
+      "mpn": "RC0603FR-0733RL",
+      "manufacturer": "Yageo",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "at": [
+        37.5,
+        13,
+        0
+      ],
+      "side": "B",
+      "pins": {
+        "1": "MOSI_HOST",
+        "2": "RF_MOSI"
+      }
+    },
+    {
+      "ref": "R5",
+      "value": "33R 1%",
+      "mpn": "RC0603FR-0733RL",
+      "manufacturer": "Yageo",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "at": [
+        33.7,
+        21.6,
+        180
+      ],
+      "side": "B",
+      "pins": {
+        "1": "RF_MISO",
+        "2": "MISO_HOST"
+      }
+    },
+    {
+      "ref": "R6",
+      "value": "100k 1%",
+      "mpn": "RC0603FR-07100KL",
+      "manufacturer": "Yageo",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "at": [
+        35,
+        16,
+        180
+      ],
+      "side": "B",
+      "pins": {
+        "1": "RF_CE",
+        "2": "GND"
+      }
+    },
+    {
+      "ref": "R7",
+      "value": "100k 1%",
+      "mpn": "RC0603FR-07100KL",
+      "manufacturer": "Yageo",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "at": [
+        35,
+        18.3,
+        180
+      ],
+      "side": "B",
+      "pins": {
+        "1": "RF_CSN",
+        "2": "RF_3V3"
+      }
+    },
+    {
+      "ref": "R8",
+      "value": "100k 1%",
+      "mpn": "RC0603FR-07100KL",
+      "manufacturer": "Yageo",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "at": [
+        35,
+        25,
+        180
+      ],
+      "side": "B",
+      "pins": {
+        "1": "RF_SCK",
+        "2": "GND"
+      }
+    },
+    {
+      "ref": "R9",
+      "value": "100k 1%",
+      "mpn": "RC0603FR-07100KL",
+      "manufacturer": "Yageo",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "at": [
+        29,
+        38,
+        0
+      ],
+      "side": "B",
+      "pins": {
+        "1": "HOST_3V3",
+        "2": "GND"
+      }
+    },
+    {
+      "ref": "TP1",
+      "value": "GND",
+      "mpn": "PCB feature",
+      "manufacturer": "PCB",
+      "footprint": "TestPoint:TestPoint_Pad_D1.0mm",
+      "at": [
+        8,
+        38,
+        0
+      ],
+      "side": "B",
+      "pins": {
+        "1": "GND"
+      }
+    },
+    {
+      "ref": "TP2",
+      "value": "BUS5V",
+      "mpn": "PCB feature",
+      "manufacturer": "PCB",
+      "footprint": "TestPoint:TestPoint_Pad_D1.0mm",
+      "at": [
+        12,
+        38,
+        0
+      ],
+      "side": "B",
+      "pins": {
+        "1": "BUS_5V"
+      }
+    },
+    {
+      "ref": "TP3",
+      "value": "RF3V3",
+      "mpn": "PCB feature",
+      "manufacturer": "PCB",
+      "footprint": "TestPoint:TestPoint_Pad_D1.0mm",
+      "at": [
+        16,
+        38,
+        0
+      ],
+      "side": "B",
+      "pins": {
+        "1": "RF_3V3"
+      }
+    },
+    {
+      "ref": "TP4",
+      "value": "CE",
+      "mpn": "PCB feature",
+      "manufacturer": "PCB",
+      "footprint": "TestPoint:TestPoint_Pad_D1.0mm",
+      "at": [
+        20,
+        38,
+        0
+      ],
+      "side": "B",
+      "pins": {
+        "1": "RF_CE"
+      }
+    },
+    {
+      "ref": "TP5",
+      "value": "CSN",
+      "mpn": "PCB feature",
+      "manufacturer": "PCB",
+      "footprint": "TestPoint:TestPoint_Pad_D1.0mm",
+      "at": [
+        8,
+        42,
+        0
+      ],
+      "side": "B",
+      "pins": {
+        "1": "RF_CSN"
+      }
+    },
+    {
+      "ref": "TP6",
+      "value": "IRQ",
+      "mpn": "PCB feature",
+      "manufacturer": "PCB",
+      "footprint": "TestPoint:TestPoint_Pad_D1.0mm",
+      "at": [
+        12,
+        42,
+        0
+      ],
+      "side": "B",
+      "pins": {
+        "1": "RF_IRQ"
+      }
+    },
+    {
+      "ref": "TP7",
+      "value": "HOST3V3",
+      "mpn": "PCB feature",
+      "manufacturer": "PCB",
+      "footprint": "TestPoint:TestPoint_Pad_D1.0mm",
+      "at": [
+        16,
+        42,
+        0
+      ],
+      "side": "B",
+      "pins": {
+        "1": "HOST_3V3"
+      }
+    }
+  ]
+}

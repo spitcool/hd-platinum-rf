@@ -1,0 +1,90 @@
+{
+  "retrieved_on": "2026-10-24",
+  "license_note": "Vendor documents were consulted from temporary downloads or web views and are not redistributed. Hashes identify downloaded reference bytes; null means browser-only reference.",
+  "sources": [
+    {
+      "title": "CoreS3-SE schematic",
+      "url": "https://m5stack-doc.oss-cn-shenzhen.aliyuncs.com/498/Sch_M5_CoreS3_SE_v1.0.pdf",
+      "design_use": "Sheets 3 and 6 GPIO nets, sheet 7 power paths",
+      "sha256": "ff105808b6073ab487c63e0af776418a58bcf386c2b63f97e3083f5698847e2f"
+    },
+    {
+      "title": "CoreS3-SE documentation",
+      "url": "https://docs.m5stack.com/en/core/CoreS3-SE",
+      "design_use": "Host physical M5-Bus table",
+      "sha256": "37613389735ee5e7aa5bb4ad67e78e048599bfd7761cca33a0194e6c55824050"
+    },
+    {
+      "title": "Linked legacy LAN-base schematic",
+      "url": "https://m5stack-doc.oss-cn-shenzhen.aliyuncs.com/999/lan_base.pdf",
+      "design_use": "Legacy GPIO labels are not CoreS3 numbers",
+      "sha256": "5d7a7a40af248fcc123f90c97a82512f99bdb6cbb23ff9585d48242c5a2cfacc"
+    },
+    {
+      "title": "NiceRF RF2401F20 V3.1 April 2022",
+      "url": "https://www.nicerf.cn/uploads/20240130/RF2401F20%202.4GHz%20%E8%BF%87CE%20FCC%20IC%20TELEC%E8%AE%A4%E8%AF%81%20%E6%97%A0%E7%BA%BF%E6%94%B6%E5%8F%91%E6%A8%A1%E5%9D%97V3.1.pdf",
+      "design_use": "Pages 4-6 current, pinout, dimensions, power-level limit",
+      "sha256": "4414f0fc80d3510cce864b3129b8049b1027ec6b5cdf4aa3c2f97ebdf3704230"
+    },
+    {
+      "title": "TI TLV755P SBVS320D",
+      "url": "https://www.ti.com/lit/ds/symlink/tlv755p.pdf",
+      "design_use": "September 2024 pins/capacitors/thermal data",
+      "sha256": "96e2706d4b13656d2d550fdbb5be9861c56b058822109bb39a906d4ad1beb019"
+    },
+    {
+      "title": "Base LAN v1.2 documentation",
+      "url": "https://docs.m5stack.com/en/base/Base_LAN_v1.2",
+      "design_use": "Physical M5-Bus map",
+      "sha256": null
+    },
+    {
+      "title": "CoreS3 + Base LAN example",
+      "url": "https://docs.m5stack.com/en/arduino/projects/base/base_lan_v1.2",
+      "design_use": "Official display/Ethernet example",
+      "sha256": null
+    },
+    {
+      "title": "Hirose U.FL catalogue",
+      "url": "https://www.hirose.com/product/download/?distributor=all&lang=en&series=U.FL&type=catalogue",
+      "design_use": "Connector footprint and paste pattern",
+      "sha256": null
+    },
+    {
+      "title": "Murata BLM18AG601SN1 datasheet",
+      "url": "https://www.murata.com/en-us/api/pdfdownloadapi?cate=cgsubChipFerriBead&partno=BLM18AG601SN1%23",
+      "design_use": "Ferrite current and DCR",
+      "sha256": null
+    },
+    {
+      "title": "Samsung CL21A106KAYNNN",
+      "url": "https://product.samsungsem.com/mlcc/CL21A106KAYNNN.do",
+      "design_use": "C1/C3 10uF25V0805 X5R",
+      "sha256": null
+    },
+    {
+      "title": "Samsung CL10B104KB8NNN",
+      "url": "https://product.samsungsem.com/mlcc/CL10B104KB8NNN.do",
+      "design_use": "C2/C5 100nF50V0603 X7R",
+      "sha256": null
+    },
+    {
+      "title": "Samsung CL31A476MPHNNN",
+      "url": "https://product.samsungsem.com/mlcc/CL31A476MPHNNN.do",
+      "design_use": "C4 47uF10V1206 X5R",
+      "sha256": null
+    },
+    {
+      "title": "Yageo RC0603FR-0733RL",
+      "url": "https://yageogroup.com/component-documentation/download/specsheet/RC0603FR-0733RL",
+      "design_use": "R1-R5 33ohm1%0603",
+      "sha256": null
+    },
+    {
+      "title": "Yageo RC0603FR-07100KL",
+      "url": "https://yageogroup.com/component-documentation/download/specsheet/RC0603FR-07100KL",
+      "design_use": "R6-R9 100kohm1%0603",
+      "sha256": null
+    }
+  ]
+}

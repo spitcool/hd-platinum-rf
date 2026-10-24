@@ -1,0 +1,3 @@
+kicad	9.0.8+dfsg-1
+kicad-footprints	9.0.7-1
+kicad-symbols	9.0.7-1

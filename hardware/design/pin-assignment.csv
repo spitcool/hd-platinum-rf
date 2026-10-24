@@ -1,0 +1,31 @@
+physical_m5bus_pin,cores3_se_signal,carrier_use,radio_pin,lan_base_use,notes
+1,GND,GND,"2;9;10",GND,Connect all ground contacts
+2,GPIO10,RF_IRQ,8,NC,Active-low input
+3,GND,GND,"2;9;10",GND,Connect all ground contacts
+4,GPIO8,RF_MISO,7,NC,Reserve Port B
+5,GND,GND,"2;9;10",GND,Connect all ground contacts
+6,RESET_EN,Pass-through,,NC,Do not load reset
+7,GPIO37,Pass-through,,W5500_MOSI,Shared display/Ethernet SPI
+8,GPIO5,RF_MOSI,6,NC,Dedicated radio SPI
+9,GPIO35,Pass-through,,W5500_MISO,Also LCD D/C; firmware bus direction control required
+10,GPIO9,Pass-through,,W5500_CSN,Reserve Port B
+11,GPIO36,Pass-through,,W5500_SCK,Shared display/Ethernet SPI
+12,HOST_3V3,RF_LDO_EN,,NC,Logic enable reference only; never tie to RF_3V3 output
+13,GPIO44,Pass-through,,NC,UART0 RX; no radio use
+14,GPIO43,Pass-through,,NC,UART0 TX; no radio use
+15,GPIO18,RF_CSN,4,NC,Active low; reserve Port C
+16,GPIO17,RF_CE,3,NC,Active high; reserve Port C
+17,GPIO12,Pass-through,,NC,Internal I2C SDA; no radio use
+18,GPIO11,Pass-through,,NC,Internal I2C SCL; no radio use
+19,GPIO2,Pass-through,,NC,Port A SDA; no radio use
+20,GPIO1,Pass-through,,Optional RS232/RS485 TX switch,Leave optional base adapters disconnected
+21,GPIO6,RF_SCK,5,NC,Dedicated radio SPI
+22,GPIO7,Pass-through,,W5500_RESET,Do not assign radio here
+23,GPIO13,Pass-through,,Optional RS232/RS485 RX switch,Internal microphone data; optional base adapters disconnected
+24,GPIO0,Pass-through,,NC,Boot strap and audio master clock; no radio use
+25,NC_HOST,Pass-through,,HPWR,Do not ground or connect to 5V
+26,GPIO14,Pass-through,,W5500_INT,Also internal speaker data; audio drivers disabled
+27,NC_HOST,Pass-through,,HPWR,Do not ground or connect to 5V
+28,BUS_5V,RF_REGULATOR_INPUT,,5V,Regulated 5V only; never feed base 9-24V here
+29,NC_HOST,Pass-through,,HPWR,Do not ground or connect to 5V
+30,BAT,Pass-through,,BAT,No carrier connection beyond pass-through

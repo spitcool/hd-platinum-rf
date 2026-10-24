@@ -3,7 +3,7 @@
 
 """Local HTTP control for configured Platinum groups and shade targets.
 
-This is a new API, not an emulation of the original bridge's TCP protocol.
+The HTTP API and optional original-protocol TCP server share this dispatcher.
 Backends receive validated commands one at a time. Successful idempotency keys
 are retained only in memory, up to the configured cache size; restarting the
 service or eviction ends that protection. One-way RF never confirms position.
@@ -15,10 +15,11 @@ from __future__ import annotations
 from collections import OrderedDict
 from collections.abc import Mapping
 from copy import deepcopy
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import ipaddress
 import json
+import logging
 import math
 from pathlib import Path
 import re
@@ -53,6 +54,8 @@ class ShadeConfig:
     mask: int = field(repr=False)
     feature: int = 4
     position_enabled: bool = False
+    sync_enabled: bool = False
+    jog_enabled: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.name, str) or not self.name.strip() or len(self.name) > 128:
@@ -67,6 +70,10 @@ class ShadeConfig:
             raise ValueError("only primary-position feature 4 is supported")
         if type(self.position_enabled) is not bool:
             raise ValueError("position_enabled must be a boolean")
+        if type(self.sync_enabled) is not bool:
+            raise ValueError("sync_enabled must be a boolean")
+        if type(self.jog_enabled) is not bool:
+            raise ValueError("jog_enabled must be a boolean")
         object.__setattr__(self, "name", self.name.strip())
         object.__setattr__(self, "room_rf_id", bytes(self.room_rf_id))
 
@@ -106,8 +113,7 @@ class BridgeConfig:
                 raise ValueError("shade RF targets must be unique within each room identity")
             targets.add(address)
             shades[shade] = target
-        if not groups and not shades:
-            raise ValueError("configure at least one group or shade")
+        # A new or emptied bridge may serve setup without any RF targets.
         object.__setattr__(self, "shades", MappingProxyType(shades))
 
 
@@ -131,13 +137,14 @@ def load_config(path: str | Path) -> BridgeConfig:
         if not isinstance(key, str) or not re.fullmatch(r"0|[1-9][0-9]?", key):
             raise ValueError("configuration shade keys must be decimal strings '0' through '99'")
         if (not isinstance(target, dict) or not shade_required <= set(target)
-                or set(target) - shade_required - {"feature", "position_enabled"}):
-            raise ValueError("shade entries require name, room_id, room_rf_id, mask, and optional feature/position_enabled")
+                or set(target) - shade_required - {"feature", "position_enabled", "sync_enabled", "jog_enabled"}):
+            raise ValueError("shade entries require name, room_id, room_rf_id, mask, and optional feature/position_enabled/sync_enabled/jog_enabled")
         if not isinstance(target["room_rf_id"], str):
             raise ValueError("configuration room_rf_id must be a hexadecimal string")
         shades[int(key)] = ShadeConfig(target["name"], target["room_id"],
             parse_remote_id(target["room_rf_id"]), target["mask"],
-            target.get("feature", 4), target.get("position_enabled", False))
+            target.get("feature", 4), target.get("position_enabled", False),
+            target.get("sync_enabled", False), target.get("jog_enabled", False))
     return BridgeConfig(parse_remote_id(value["remote_id"]),
                         {int(key): label for key, label in groups.items()}, value["api_token"], shades)
 
@@ -162,6 +169,20 @@ class PositionCommand:
     request_id: str
 
 
+@dataclass(frozen=True)
+class SyncCommand:
+    shade: int
+    target: ShadeConfig = field(repr=False)
+    request_id: str
+
+
+@dataclass(frozen=True)
+class JogCommand:
+    shade: int
+    target: ShadeConfig = field(repr=False)
+    request_id: str
+
+
 class BridgeError(Exception):
     def __init__(self, status: int, code: str, message: str) -> None:
         super().__init__(message)
@@ -172,7 +193,7 @@ class BridgeError(Exception):
 class DryRunBackend:
     name = "dry-run"
 
-    def __call__(self, command: Command | PositionCommand) -> Mapping[str, object]:
+    def __call__(self, command: Command | PositionCommand | SyncCommand | JogCommand) -> Mapping[str, object]:
         return {"status": "simulated", "detail": "Dry run: no RF transmission", "frames_sent": 0}
 
 
@@ -187,21 +208,113 @@ class BridgeService:
     def __init__(self, config: BridgeConfig,
                  backend: Callable[[Command], Mapping[str, object]], *,
                  cache_size: int = 1024, backend_name: str | None = None,
-                 position_backend: Callable[[PositionCommand], Mapping[str, object]] | None = None) -> None:
+                 position_backend: Callable[[PositionCommand], Mapping[str, object]] | None = None,
+                 sync_backend: Callable[[SyncCommand], Mapping[str, object]] | None = None,
+                 jog_backend: Callable[[JogCommand], Mapping[str, object]] | None = None) -> None:
         if not isinstance(config, BridgeConfig) or not callable(backend):
             raise ValueError("a BridgeConfig and callable backend are required")
         if type(cache_size) is not int or not 1 <= cache_size <= 100_000:
             raise ValueError("cache_size must be between 1 and 100000")
         if position_backend is not None and not callable(position_backend):
             raise ValueError("position_backend must be callable when supplied")
+        if sync_backend is not None and not callable(sync_backend):
+            raise ValueError("sync_backend must be callable when supplied")
+        if jog_backend is not None and not callable(jog_backend):
+            raise ValueError("jog_backend must be callable when supplied")
         self.config = config
+        self._configured_targets = config.shades
+        self._inventory_store = None
         self.backend = backend
         self.position_backend = position_backend
+        self.sync_backend = sync_backend
+        self.jog_backend = jog_backend
         self.backend_name = backend_name or getattr(backend, "name", type(backend).__name__)
         self.cache_size = cache_size
         self._send_lock = threading.Lock()
         self._cache_lock = threading.Lock()
         self._cache: OrderedDict[str, tuple[tuple, dict]] = OrderedDict()
+        self._listener_lock = threading.RLock()
+        self._position_listeners = []
+
+    def attach_inventory(self, store):
+        """Bind the shared database before accepting clients.
+
+        Inventory membership is separate from the explicitly configured RF
+        grants. Edits and RF dispatch always acquire the send lock first.
+        """
+        from .inventory_store import InventoryStore
+        if not isinstance(store, InventoryStore):
+            raise ValueError("inventory must be an InventoryStore")
+        with self._send_lock:
+            if self._inventory_store is not None and self._inventory_store is not store:
+                raise ValueError("service already has an attached inventory")
+            self._inventory_store = store
+            self._refresh_inventory_targets()
+
+    def detach_inventory(self, store):
+        """Detach a closed transport without restoring revoked RF grants."""
+        with self._send_lock:
+            if self._inventory_store is store:
+                self._inventory_store = None
+
+    def _refresh_inventory_targets(self):
+        try:
+            targets = self._inventory_store.project_targets(self._configured_targets)
+            self.config = replace(self.config, shades=targets)
+        except Exception:
+            # A failed or uncertain persistence operation cannot leave old
+            # addresses authorized in the dispatcher.
+            self.config = replace(self.config, shades={})
+            raise
+
+    def mutate_inventory(self, callback):
+        """Commit one typed database edit while no RF operation can run."""
+        if not callable(callback):
+            raise ValueError("inventory mutation must be callable")
+        if not self._send_lock.acquire(blocking=False):
+            raise BridgeError(409, "busy", "another command is being sent")
+        try:
+            if self._inventory_store is None:
+                raise BridgeError(503, "inventory_unavailable", "no inventory is attached")
+            try:
+                return callback(self._inventory_store)
+            finally:
+                self._refresh_inventory_targets()
+        finally:
+            self._send_lock.release()
+
+    def _validate_current_target(self, command):
+        if not isinstance(command, (PositionCommand, SyncCommand, JogCommand)):
+            return
+        if self._inventory_store is not None:
+            try:
+                self._refresh_inventory_targets()
+            except Exception as exc:
+                raise BridgeError(503, "inventory_unavailable", "inventory must be reopened before transmission") from exc
+        current = self.config.shades.get(command.shade)
+        enabled_field = ("sync_enabled" if isinstance(command, SyncCommand) else
+                         "jog_enabled" if isinstance(command, JogCommand) else "position_enabled")
+        enabled = current is not None and getattr(current, enabled_field)
+        if current != command.target or not enabled:
+            raise BridgeError(409, "target_changed", "shade configuration changed before transmission")
+
+    def add_position_listener(self, callback):
+        """Observe committed requests from either transport, once per dispatch.
+
+        Observers run under dispatch serialization after the receipt is cached.
+        A persistence or client-notification failure must never invite a second
+        RF transmission for an already submitted idempotency key.
+        """
+        if not callable(callback):
+            raise ValueError("position listener must be callable")
+        with self._listener_lock:
+            self._position_listeners.append(callback)
+
+        def unsubscribe():
+            with self._listener_lock:
+                if callback in self._position_listeners:
+                    self._position_listeners.remove(callback)
+        return unsubscribe
 
     def health(self) -> dict:
         return {"status": "ok", "service": "hd-platinum", "backend": self.backend_name,
@@ -215,9 +328,12 @@ class BridgeService:
 
     def shades(self) -> dict:
         return {"shades": [{"shade": shade, "name": target.name, "room_id": target.room_id,
-                            "position_enabled": target.position_enabled}
+                            "position_enabled": target.position_enabled,
+                            "sync_enabled": target.sync_enabled, "jog_enabled": target.jog_enabled}
                            for shade, target in sorted(self.config.shades.items())],
                 "position_backend_available": self.position_backend is not None,
+                "sync_backend_available": self.sync_backend is not None,
+                "jog_backend_available": self.jog_backend is not None,
                 "position_confirmation_available": False}
 
     def _cached(self, request_id: str, signature: tuple) -> dict | None:
@@ -251,39 +367,148 @@ class BridgeService:
         return request_id
 
     def dispatch_position(self, value: object) -> dict:
+        command, signature, fields, cached = self._prepare_position(value)
+        if cached is not None:
+            return cached
+        return self._dispatch(command, signature, fields, self.position_backend)
+
+    def dispatch_sync(self, value: object, *, on_started=None, on_transmit_submitted=None) -> dict:
+        """Submit one explicitly enabled Sync operation, never a position update.
+
+        The optional transport callback runs after serialization is acquired,
+        immediately before the backend. A replay never invokes the callback.
+        A backend with a ``submit`` method can notify after finite TX, before
+        diagnostic RX finishes. Ordinary callable backends notify on successful
+        return. Notification failure never changes the RF result or triggers a
+        retry. Replays invoke neither callback. Completion is not enrollment.
+        """
+        if not isinstance(value, dict) or set(value) - {"shade", "request_id"}:
+            raise BridgeError(400, "invalid_command", "expected shade and optional request_id")
+        shade = value.get("shade")
+        targets = self.config.shades
+        if type(shade) is not int or shade not in targets:
+            raise BridgeError(400, "invalid_shade", "shade must be one of the configured integer shade numbers")
+        request_id = self._request_id(value)
+        signature = ("sync", shade)
+        self._cached(request_id, signature)  # Detect cross-operation conflicts before dispatch.
+        target = targets[shade]
+        if not target.sync_enabled:
+            raise BridgeError(409, "sync_disabled", "Sync is disabled for this shade")
+        if self.sync_backend is None:
+            raise BridgeError(503, "sync_unavailable", "no Sync backend is configured")
+        if on_started is not None and not callable(on_started):
+            raise ValueError("on_started must be callable when supplied")
+        if on_transmit_submitted is not None and not callable(on_transmit_submitted):
+            raise ValueError("on_transmit_submitted must be callable when supplied")
+        return self._dispatch(SyncCommand(shade, target, request_id), signature,
+                              {"operation": "sync", "shade": shade}, self.sync_backend,
+                              on_started=on_started, on_transmit_submitted=on_transmit_submitted)
+
+    def dispatch_jog(self, value: object) -> dict:
+        """Submit one explicitly enabled Jog; never update requested position."""
+        if not isinstance(value, dict) or set(value) - {"shade", "request_id"}:
+            raise BridgeError(400, "invalid_command", "expected shade and optional request_id")
+        shade = value.get("shade")
+        targets = self.config.shades
+        if type(shade) is not int or shade not in targets:
+            raise BridgeError(400, "invalid_shade", "shade must be one of the configured integer shade numbers")
+        request_id = self._request_id(value)
+        signature = ("jog", shade)
+        self._cached(request_id, signature)
+        target = targets[shade]
+        if not target.jog_enabled:
+            raise BridgeError(409, "jog_disabled", "Jog is disabled for this shade")
+        if self.jog_backend is None:
+            raise BridgeError(503, "jog_unavailable", "no Jog backend is configured")
+        return self._dispatch(JogCommand(shade, target, request_id), signature,
+                              {"operation": "jog", "shade": shade}, self.jog_backend)
+
+    def _prepare_position(self, value):
         if not isinstance(value, dict) or set(value) - {"shade", "position", "request_id"}:
             raise BridgeError(400, "invalid_command", "expected shade, position, and optional request_id")
         shade, position = value.get("shade"), value.get("position")
-        if type(shade) is not int or shade not in self.config.shades:
+        targets = self.config.shades
+        if type(shade) is not int or shade not in targets:
             raise BridgeError(400, "invalid_shade", "shade must be one of the configured integer shade numbers")
         if type(position) is not int or not 0 <= position <= 255:
             raise BridgeError(400, "invalid_position", "position must be an integer within 0..255")
         request_id = self._request_id(value)
         signature = ("position", shade, position)
         cached = self._cached(request_id, signature)
-        if cached is not None:
-            return cached
-        target = self.config.shades[shade]
+        target = targets[shade]
         if not target.position_enabled:
             raise BridgeError(409, "validation_required", "position control is disabled until this shade's RF mapping is validated")
         if self.position_backend is None:
             raise BridgeError(503, "position_unavailable", "no position backend is configured")
         command = PositionCommand(shade, position, target, request_id)
-        return self._dispatch(command, signature, {"shade": shade, "requested_position": position}, self.position_backend)
+        return command, signature, {"shade": shade, "requested_position": position}, cached
 
-    def _dispatch(self, command, signature: tuple, public_fields: dict, backend) -> dict:
+    def dispatch_positions(self, values) -> list[dict]:
+        """Validate a staged batch before RF and serialize its complete submission.
+
+        Physical actuation cannot be rolled back. If a later backend call fails,
+        earlier receipts remain cached and observers retain those requests; the
+        failed/remaining items are never automatically retried.
+        """
+        if not isinstance(values, (list, tuple)) or not 1 <= len(values) <= 100:
+            raise BridgeError(400, "invalid_batch", "expected 1 to 100 position requests")
+        prepared = [self._prepare_position(value) for value in values]
+        identifiers = [command.request_id for command, _, _, _ in prepared]
+        if len(set(identifiers)) != len(identifiers):
+            raise BridgeError(400, "invalid_batch", "batch request identifiers must be unique")
+        if not self._send_lock.acquire(blocking=False):
+            raise BridgeError(409, "busy", "another command is being sent")
+        try:
+            # Recheck the whole batch under serialization before its first RF
+            # action; an edit may have won the lock after initial validation.
+            for command, signature, _, _ in prepared:
+                if self._cached(command.request_id, signature) is None:
+                    self._validate_current_target(command)
+            return [self._dispatch(command, signature, fields, self.position_backend,
+                                   already_serialized=True)
+                    for command, signature, fields, _ in prepared]
+        finally:
+            self._send_lock.release()
+
+    def _dispatch(self, command, signature: tuple, public_fields: dict, backend, *,
+                  already_serialized=False, on_started=None, on_transmit_submitted=None) -> dict:
         request_id = command.request_id
         cached = self._cached(request_id, signature)
         if cached is not None:
             return cached
-        if not self._send_lock.acquire(blocking=False):
+        if not already_serialized and not self._send_lock.acquire(blocking=False):
             raise BridgeError(409, "busy", "another command is being sent; retry with the same request_id")
         try:
             cached = self._cached(request_id, signature)
             if cached is not None:
                 return cached
+            self._validate_current_target(command)
+            if on_started is not None:
+                on_started()
+            notified, notification_lock = False, threading.Lock()
+
+            def notify_submitted():
+                nonlocal notified
+                with notification_lock:
+                    if notified:
+                        return
+                    notified = True
+                if on_transmit_submitted is not None:
+                    try:
+                        on_transmit_submitted()
+                    except Exception:
+                        logging.getLogger(__name__).error(
+                            "Sync lifecycle notification failed after submission")
+
             try:
-                receipt = backend(command)
+                # Use an explicitly implemented method, not an arbitrary
+                # dynamic attribute on an otherwise ordinary callable.
+                submit = (getattr(backend, "submit")
+                          if callable(getattr(type(backend), "submit", None)) else None)
+                if on_transmit_submitted is not None and callable(submit):
+                    receipt = submit(command, on_transmit_submitted=notify_submitted)
+                else:
+                    receipt = backend(command)
                 if not isinstance(receipt, Mapping) or receipt.get("status") not in ("sent", "submitted", "simulated"):
                     raise ValueError("invalid backend receipt")
                 details = {}
@@ -306,19 +531,39 @@ class BridgeService:
                     if any(type(channel) is not int or channel <= 0 for channel in channels):
                         raise ValueError("invalid backend channels")
                     details["channels_hz"] = list(channels)
+                if "sequence" in receipt:
+                    sequence = receipt["sequence"]
+                    if type(sequence) is not int or not 0 <= sequence <= 65535:
+                        raise ValueError("invalid backend sequence")
+                    details["sequence"] = sequence
             except Exception as exc:
                 raise BridgeError(502, "backend_error", "RF backend failed; delivery is unverified") from exc
+            if on_transmit_submitted is not None:
+                notify_submitted()
+            confirmation = ({"sync_confirmed": False} if isinstance(command, SyncCommand) else
+                            {"jog_confirmed": False} if isinstance(command, JogCommand) else
+                            {"position_confirmed": False})
             result = {"request_id": request_id, **public_fields,
                       "status": receipt["status"], "delivery": "unverified",
-                      "position_confirmed": False, "backend": details, "replayed": False}
+                      **confirmation, "backend": details, "replayed": False}
             with self._cache_lock:
                 self._cache[request_id] = (signature, deepcopy(result))
                 self._cache.move_to_end(request_id)
                 while len(self._cache) > self.cache_size:
                     self._cache.popitem(last=False)
+            if isinstance(command, PositionCommand):
+                with self._listener_lock:
+                    listeners = tuple(self._position_listeners)
+                for callback in listeners:
+                    try:
+                        callback(command, deepcopy(result))
+                    except Exception:
+                        logging.getLogger(__name__).error(
+                            "Requested-position observer failed after command submission")
             return result
         finally:
-            self._send_lock.release()
+            if not already_serialized:
+                self._send_lock.release()
 
 
 _DASHBOARD = """<!doctype html><html lang="en"><meta charset="utf-8">
@@ -457,7 +702,7 @@ class _Handler(BaseHTTPRequestHandler):
                 self._reply(200, self.server.service.shades())
             elif path == "/":
                 self._reply(200, _DASHBOARD, html=True)
-            elif path in ("/api/commands", "/api/positions"):
+            elif path in ("/api/commands", "/api/positions", "/api/sync", "/api/jog"):
                 raise BridgeError(405, "method_not_allowed", "commands require POST")
             else:
                 raise BridgeError(404, "not_found", "resource not found")
@@ -468,7 +713,7 @@ class _Handler(BaseHTTPRequestHandler):
         try:
             host = self._host()
             path = urlsplit(self.path).path
-            if path not in ("/api/commands", "/api/positions"):
+            if path not in ("/api/commands", "/api/positions", "/api/sync", "/api/jog"):
                 raise BridgeError(404, "not_found", "resource not found")
             self._authorize(host)
             if self.headers.get("Transfer-Encoding"):
@@ -493,8 +738,10 @@ class _Handler(BaseHTTPRequestHandler):
                 value = json.loads(body.decode("utf-8"), object_pairs_hook=_unique_object)
             except (ValueError, UnicodeError, RecursionError) as exc:
                 raise BridgeError(400, "invalid_json", "body must be complete UTF-8 JSON") from exc
-            dispatch = (self.server.service.dispatch_position if path == "/api/positions"
-                        else self.server.service.dispatch)
+            dispatch = {"/api/commands": self.server.service.dispatch,
+                        "/api/positions": self.server.service.dispatch_position,
+                        "/api/sync": self.server.service.dispatch_sync,
+                        "/api/jog": self.server.service.dispatch_jog}[path]
             result = dispatch(value)
             self._reply(202 if result["status"] == "submitted" else 200, result)
         except BridgeError as exc:

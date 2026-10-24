@@ -36,7 +36,6 @@ class BridgeServiceTests(unittest.TestCase):
             for value in (
                 {"remote_id": "aabb", "api_token": TOKEN, "groups": {"5": "Invalid"}},
                 {"remote_id": "aabb", "api_token": "short", "groups": {"1": "Test"}},
-                {"remote_id": "aabb", "api_token": TOKEN, "groups": {}},
                 {"remote_id": "aabb", "api_token": TOKEN, "groups": {"1": "Test"}, "extra": 1},
             ):
                 path.write_text(json.dumps(value))

@@ -46,8 +46,10 @@ class ShadeConfigTests(unittest.TestCase):
         self.assertEqual(error.exception.code, 'validation_required')
         group_backend.assert_not_called()
         position_backend.assert_not_called()
-        with self.assertRaises(ValueError):
-            BridgeConfig(b'AB', {}, TOKEN)
+        empty = BridgeService(BridgeConfig(b'AB', {}, TOKEN), group_backend)
+        self.assertEqual(empty.shades()['shades'], [])
+        with self.assertRaises(BridgeError):
+            empty.dispatch_position({'shade': 0, 'position': 128})
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'config.json'
             path.write_text(json.dumps(dict(remote_id='4142', groups={}, api_token=TOKEN,
@@ -151,7 +153,8 @@ class PositionServiceTests(unittest.TestCase):
     def test_shade_listing_contains_only_public_configuration(self):
         listing = self.service.shades()
         self.assertEqual(listing['shades'], [{'shade': 0, 'name': 'Example shade', 'room_id': 0,
-                                             'position_enabled': True}])
+                                         'position_enabled': True, 'sync_enabled': False,
+                                         'jog_enabled': False}])
         self.assertTrue(listing['position_backend_available'])
         self.assertFalse(listing['position_confirmation_available'])
         serialized = json.dumps(listing)

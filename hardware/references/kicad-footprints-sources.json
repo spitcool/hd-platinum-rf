@@ -1,0 +1,46 @@
+{
+  "upstream": "https://gitlab.com/kicad/libraries/kicad-footprints",
+  "license": "CC-BY-SA-4.0 WITH KiCad-libraries-exception",
+  "notice": "KiCad-Libraries-LICENSE.md",
+  "package_copyright": "kicad-footprints-debian-copyright.txt",
+  "modifications": "Seven standard footprints unchanged; Hirose U.FL has only allow_soldermask_bridges enabled. No pad, mask-opening drawing or copper-keepout geometry changed.",
+  "files": [
+    {
+      "path": "kicad/Capacitor_SMD.pretty/C_0603_1608Metric.kicad_mod",
+      "sha256": "86a101f1dbc512aa9a73532f4b837db141edd5bded65094b0d13dca3fc3f6c68"
+    },
+    {
+      "path": "kicad/Capacitor_SMD.pretty/C_0805_2012Metric.kicad_mod",
+      "sha256": "1e9871a31457c9d9932d22edb68ed91c275a6270066239b08d192eead990c301"
+    },
+    {
+      "path": "kicad/Capacitor_SMD.pretty/C_1206_3216Metric.kicad_mod",
+      "sha256": "0bbfd1e461a7affe3ccb4f4dfe2534925ca853c7537e23addb29066df8015135"
+    },
+    {
+      "path": "kicad/Connector_Coaxial.pretty/U.FL_Hirose_U.FL-R-SMT-1_Vertical.kicad_mod",
+      "sha256": "4a411a8ba2c92100107165d8444650558eb20c9754f2c7db7ae157ca6d0ef3cf",
+      "upstream_sha256": "ccd686e3e0c2f74cea7236adaad05eafe5da2de547e58b4658fc4f5a1083850c",
+      "modification": "Enabled allow_soldermask_bridges for the intentional mask-opening connection under J2; no pad or keepout geometry change."
+    },
+    {
+      "path": "kicad/Inductor_SMD.pretty/L_0603_1608Metric.kicad_mod",
+      "sha256": "0aa93caea72fdf238d69a6c0620ee550bce6d41968bfdba42609b192d0fa6bd9"
+    },
+    {
+      "path": "kicad/Package_TO_SOT_SMD.pretty/SOT-23-5.kicad_mod",
+      "sha256": "2a5c9e030fb192cd2393b5f95872fe796deb29ae7570c83050e19f7b78ceea71"
+    },
+    {
+      "path": "kicad/Resistor_SMD.pretty/R_0603_1608Metric.kicad_mod",
+      "sha256": "32e6f926b4be772aeabae6060210133fbf78854a3fe12ca7011b4916ed49f134"
+    },
+    {
+      "path": "kicad/TestPoint.pretty/TestPoint_Pad_D1.0mm.kicad_mod",
+      "sha256": "b0b2255392e3f4f8f34b86f2fe20075aac7922bf3317c8ed416f29b4e47d0225"
+    }
+  ],
+  "source_package": "kicad-footprints",
+  "source_package_version": "9.0.7-1",
+  "tool_versions": "../reports/tool-versions.txt"
+}

@@ -1,0 +1,11 @@
+Item,Quantity,Unit,Manufacturer,MPN,Description,Status,Notes,Reference
+SYS01,1,each,M5Stack,K128-SE,CoreS3 SE controller,Selected,Exact CoreS3 SE pin mapping; program separately,https://docs.m5stack.com/en/core/CoreS3-SE
+SYS02,1,each,M5Stack,K012-B-V12,Base LAN v1.2 Ethernet base,Selected,Use the CoreS3 switch settings in electrical evidence; DC input unused for selected USB power arrangement,https://docs.m5stack.com/en/base/Base_LAN_v1.2
+SYS03,1,each,M5Stack,M032,Module13.2 Proto enclosure/frame,Selected,Replace original perfboard with carrier; retain four supplied M2x5 self-tapping PCB retention screws,https://shop.m5stack.com/products/proto-module-13-2
+SYS04,1,PCBA,Project,hd-platinum-carrier-rev-a,Assembled radio carrier,Engineering first article,Includes PCBA BOM components; do not separately add those parts again,bom.csv
+SYS05,1,each,Taoglas,CAB.628,95mm 1.13mm coax I-PEX MHF I to RP-SMA female bulkhead,Selected; routing fit pending,50 ohm cable; use bulkhead hardware from supplier; enclosure hole position remains a fit check,https://www.taoglas.com/datasheets/CAB.628.pdf
+SYS06,1,each,Taoglas,GW.11.A153,2.4GHz hinged RP-SMA male external antenna,Selected; RF qualification pending,Mates with CAB.628; use actual final enclosure position in qualification,https://cdn.taoglas.com/datasheets/GW.11.A153.pdf
+SYS07,1,each,Raspberry Pi,SC0218,15W USB-C supply black US Type A fixed5.1V3A,Selected; stack power qualification pending,Captive1.5m USB-C cable; feed CoreS3 SE USB-C; firmware enables BUS5V; do not connect LAN DC simultaneously,https://datasheets.raspberrypi.org/power-supply/usb-c-power-supply-product-brief.pdf
+SYS08,1,set,To be selected after sample fit,NOT RELEASED,Whole-stack M3 fasteners,Physical-fit hold,Record separate lengths by position; M032 retention screws are not stack screws,../design/mechanical-evidence.md
+SYS09,1,set,To be selected after sample fit,NOT RELEASED,Coax strain relief and enclosure bulkhead modification,Physical-fit hold,Freeze location and retention method after inspecting M032 ribs and connector clearances,assembly.md
+SYS10,1,each,Installer supplied,Cat5e or better RJ45 patch cable,Ethernet patch cable,Installation accessory,Choose length for the installation; not a PCBA component,https://docs.m5stack.com/en/base/Base_LAN_v1.2

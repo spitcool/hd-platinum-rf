@@ -1,0 +1,827 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<export version="E">
+  <design>
+    <source>/work/hardware/kicad/hd-platinum-carrier-rev-a.kicad_sch</source>
+    <date>2026-10-24T20:09:24+0000</date>
+    <tool>Eeschema 9.0.8+dfsg-1</tool>
+    <sheet number="1" name="/" tstamps="/">
+      <title_block>
+        <title>HD Platinum RF carrier</title>
+        <company>HD Platinum RF</company>
+        <rev>A</rev>
+        <date>2026-10-24</date>
+        <source>hd-platinum-carrier-rev-a.kicad_sch</source>
+        <comment number="1" value="Engineering first article - not production released"/>
+        <comment number="2" value=""/>
+        <comment number="3" value=""/>
+        <comment number="4" value=""/>
+        <comment number="5" value=""/>
+        <comment number="6" value=""/>
+        <comment number="7" value=""/>
+        <comment number="8" value=""/>
+        <comment number="9" value=""/>
+      </title_block>
+    </sheet>
+  </design>
+  <components>
+    <comp ref="C1">
+      <value>10uF 25V X5R</value>
+      <footprint>Capacitor_SMD:C_0805_2012Metric</footprint>
+      <fields>
+        <field name="MPN">CL21A106KAYNNNE</field>
+        <field name="Manufacturer">Samsung</field>
+        <field name="Footprint">Capacitor_SMD:C_0805_2012Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="HDPlatinum" part="C" description=""/>
+      <property name="MPN" value="CL21A106KAYNNNE"/>
+      <property name="Manufacturer" value="Samsung"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="hd-platinum-carrier-rev-a.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>5ddd1ca5-1ad4-5577-89c9-ec6ab84cb405</tstamps>
+    </comp>
+    <comp ref="C2">
+      <value>100nF 50V X7R</value>
+      <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
+      <fields>
+        <field name="MPN">CL10B104KB8NNNC</field>
+        <field name="Manufacturer">Samsung</field>
+        <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="HDPlatinum" part="C" description=""/>
+      <property name="MPN" value="CL10B104KB8NNNC"/>
+      <property name="Manufacturer" value="Samsung"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="hd-platinum-carrier-rev-a.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2c8d943-bd3e-5f55-b7f6-f8c7326c1e8f</tstamps>
+    </comp>
+    <comp ref="C3">
+      <value>10uF 25V X5R</value>
+      <footprint>Capacitor_SMD:C_0805_2012Metric</footprint>
+      <fields>
+        <field name="MPN">CL21A106KAYNNNE</field>
+        <field name="Manufacturer">Samsung</field>
+        <field name="Footprint">Capacitor_SMD:C_0805_2012Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="HDPlatinum" part="C" description=""/>
+      <property name="MPN" value="CL21A106KAYNNNE"/>
+      <property name="Manufacturer" value="Samsung"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="hd-platinum-carrier-rev-a.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>26082a14-7174-5aaa-a7c6-aef5aae90682</tstamps>
+    </comp>
+    <comp ref="C4">
+      <value>47uF 10V X5R</value>
+      <footprint>Capacitor_SMD:C_1206_3216Metric</footprint>
+      <fields>
+        <field name="MPN">CL31A476MPHNNNE</field>
+        <field name="Manufacturer">Samsung</field>
+        <field name="Footprint">Capacitor_SMD:C_1206_3216Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="HDPlatinum" part="C" description=""/>
+      <property name="MPN" value="CL31A476MPHNNNE"/>
+      <property name="Manufacturer" value="Samsung"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="hd-platinum-carrier-rev-a.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>9fc42f52-4297-51a2-bfd3-1b77b788756b</tstamps>
+    </comp>
+    <comp ref="C5">
+      <value>100nF 50V X7R</value>
+      <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
+      <fields>
+        <field name="MPN">CL10B104KB8NNNC</field>
+        <field name="Manufacturer">Samsung</field>
+        <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="HDPlatinum" part="C" description=""/>
+      <property name="MPN" value="CL10B104KB8NNNC"/>
+      <property name="Manufacturer" value="Samsung"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="hd-platinum-carrier-rev-a.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>1b08592c-ae2d-5a48-85a7-b271f616db54</tstamps>
+    </comp>
+    <comp ref="FB1">
+      <value>600R@100MHz</value>
+      <footprint>Inductor_SMD:L_0603_1608Metric</footprint>
+      <fields>
+        <field name="MPN">BLM18AG601SN1D</field>
+        <field name="Manufacturer">Murata</field>
+        <field name="Footprint">Inductor_SMD:L_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="HDPlatinum" part="Ferrite" description=""/>
+      <property name="MPN" value="BLM18AG601SN1D"/>
+      <property name="Manufacturer" value="Murata"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="hd-platinum-carrier-rev-a.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>789abe0a-043d-5edb-9503-776de8c03c26</tstamps>
+    </comp>
+    <comp ref="J1">
+      <value>M5-Bus A089</value>
+      <footprint>HDPlatinum:M5Bus_A089_2x15</footprint>
+      <fields>
+        <field name="MPN">A089</field>
+        <field name="Manufacturer">M5Stack</field>
+        <field name="Footprint">HDPlatinum:M5Bus_A089_2x15</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="HDPlatinum" part="M5Bus_A089" description=""/>
+      <property name="MPN" value="A089"/>
+      <property name="Manufacturer" value="M5Stack"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="hd-platinum-carrier-rev-a.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>00712416-646f-5f7c-b946-97a21499fa66</tstamps>
+    </comp>
+    <comp ref="J2">
+      <value>U.FL</value>
+      <footprint>Connector_Coaxial:U.FL_Hirose_U.FL-R-SMT-1_Vertical</footprint>
+      <fields>
+        <field name="MPN">U.FL-R-SMT-1(10)</field>
+        <field name="Manufacturer">Hirose</field>
+        <field name="Footprint">Connector_Coaxial:U.FL_Hirose_U.FL-R-SMT-1_Vertical</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="HDPlatinum" part="UFL" description=""/>
+      <property name="MPN" value="U.FL-R-SMT-1(10)"/>
+      <property name="Manufacturer" value="Hirose"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="hd-platinum-carrier-rev-a.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>edb56361-c421-5635-b817-729478cc7345</tstamps>
+    </comp>
+    <comp ref="R1">
+      <value>33R 1%</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="MPN">RC0603FR-0733RL</field>
+        <field name="Manufacturer">Yageo</field>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="HDPlatinum" part="R_H" description=""/>
+      <property name="MPN" value="RC0603FR-0733RL"/>
+      <property name="Manufacturer" value="Yageo"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="hd-platinum-carrier-rev-a.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>d879765d-5129-5708-b6f7-b1126d7067c2</tstamps>
+    </comp>
+    <comp ref="R2">
+      <value>33R 1%</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="MPN">RC0603FR-0733RL</field>
+        <field name="Manufacturer">Yageo</field>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="HDPlatinum" part="R_H" description=""/>
+      <property name="MPN" value="RC0603FR-0733RL"/>
+      <property name="Manufacturer" value="Yageo"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="hd-platinum-carrier-rev-a.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>0d7866ec-aa83-51d4-8df3-f8ead6fa3f57</tstamps>
+    </comp>
+    <comp ref="R3">
+      <value>33R 1%</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="MPN">RC0603FR-0733RL</field>
+        <field name="Manufacturer">Yageo</field>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="HDPlatinum" part="R_H" description=""/>
+      <property name="MPN" value="RC0603FR-0733RL"/>
+      <property name="Manufacturer" value="Yageo"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="hd-platinum-carrier-rev-a.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>950c89a2-1039-5760-8db5-c9420f050f72</tstamps>
+    </comp>
+    <comp ref="R4">
+      <value>33R 1%</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="MPN">RC0603FR-0733RL</field>
+        <field name="Manufacturer">Yageo</field>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="HDPlatinum" part="R_H" description=""/>
+      <property name="MPN" value="RC0603FR-0733RL"/>
+      <property name="Manufacturer" value="Yageo"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="hd-platinum-carrier-rev-a.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>8b2072da-5b8b-5f7c-a2c6-59781f3b8514</tstamps>
+    </comp>
+    <comp ref="R5">
+      <value>33R 1%</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="MPN">RC0603FR-0733RL</field>
+        <field name="Manufacturer">Yageo</field>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="HDPlatinum" part="R_H" description=""/>
+      <property name="MPN" value="RC0603FR-0733RL"/>
+      <property name="Manufacturer" value="Yageo"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="hd-platinum-carrier-rev-a.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b3cd232f-20c6-5d5c-bdd3-71047136878f</tstamps>
+    </comp>
+    <comp ref="R6">
+      <value>100k 1%</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="MPN">RC0603FR-07100KL</field>
+        <field name="Manufacturer">Yageo</field>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="HDPlatinum" part="R_V" description=""/>
+      <property name="MPN" value="RC0603FR-07100KL"/>
+      <property name="Manufacturer" value="Yageo"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="hd-platinum-carrier-rev-a.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>2f9a7ddd-75ea-5968-ba48-68eaf3db6526</tstamps>
+    </comp>
+    <comp ref="R7">
+      <value>100k 1%</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="MPN">RC0603FR-07100KL</field>
+        <field name="Manufacturer">Yageo</field>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="HDPlatinum" part="R_V" description=""/>
+      <property name="MPN" value="RC0603FR-07100KL"/>
+      <property name="Manufacturer" value="Yageo"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="hd-platinum-carrier-rev-a.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>99952e7e-5752-5948-8407-e21b1fe45a98</tstamps>
+    </comp>
+    <comp ref="R8">
+      <value>100k 1%</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="MPN">RC0603FR-07100KL</field>
+        <field name="Manufacturer">Yageo</field>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="HDPlatinum" part="R_V" description=""/>
+      <property name="MPN" value="RC0603FR-07100KL"/>
+      <property name="Manufacturer" value="Yageo"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="hd-platinum-carrier-rev-a.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>30d7419f-d597-5807-8ce2-e32c4f817cce</tstamps>
+    </comp>
+    <comp ref="R9">
+      <value>100k 1%</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="MPN">RC0603FR-07100KL</field>
+        <field name="Manufacturer">Yageo</field>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="HDPlatinum" part="R_V" description=""/>
+      <property name="MPN" value="RC0603FR-07100KL"/>
+      <property name="Manufacturer" value="Yageo"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="hd-platinum-carrier-rev-a.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>487211ae-d177-50a3-a2bf-953c05116b9d</tstamps>
+    </comp>
+    <comp ref="TP1">
+      <value>GND</value>
+      <footprint>TestPoint:TestPoint_Pad_D1.0mm</footprint>
+      <fields>
+        <field name="MPN">PCB feature</field>
+        <field name="Manufacturer">PCB</field>
+        <field name="Footprint">TestPoint:TestPoint_Pad_D1.0mm</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="HDPlatinum" part="TestPoint" description=""/>
+      <property name="MPN" value="PCB feature"/>
+      <property name="Manufacturer" value="PCB"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="hd-platinum-carrier-rev-a.kicad_sch"/>
+      <property name="exclude_from_bom"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>47570e20-2181-525d-85a0-f883fba068ec</tstamps>
+    </comp>
+    <comp ref="TP2">
+      <value>BUS5V</value>
+      <footprint>TestPoint:TestPoint_Pad_D1.0mm</footprint>
+      <fields>
+        <field name="MPN">PCB feature</field>
+        <field name="Manufacturer">PCB</field>
+        <field name="Footprint">TestPoint:TestPoint_Pad_D1.0mm</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="HDPlatinum" part="TestPoint" description=""/>
+      <property name="MPN" value="PCB feature"/>
+      <property name="Manufacturer" value="PCB"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="hd-platinum-carrier-rev-a.kicad_sch"/>
+      <property name="exclude_from_bom"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>1297bdfe-3b8c-5381-b42a-c1b3fef7acd5</tstamps>
+    </comp>
+    <comp ref="TP3">
+      <value>RF3V3</value>
+      <footprint>TestPoint:TestPoint_Pad_D1.0mm</footprint>
+      <fields>
+        <field name="MPN">PCB feature</field>
+        <field name="Manufacturer">PCB</field>
+        <field name="Footprint">TestPoint:TestPoint_Pad_D1.0mm</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="HDPlatinum" part="TestPoint" description=""/>
+      <property name="MPN" value="PCB feature"/>
+      <property name="Manufacturer" value="PCB"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="hd-platinum-carrier-rev-a.kicad_sch"/>
+      <property name="exclude_from_bom"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>dbbd0ad1-693e-5b42-a281-2f17526d86fa</tstamps>
+    </comp>
+    <comp ref="TP4">
+      <value>CE</value>
+      <footprint>TestPoint:TestPoint_Pad_D1.0mm</footprint>
+      <fields>
+        <field name="MPN">PCB feature</field>
+        <field name="Manufacturer">PCB</field>
+        <field name="Footprint">TestPoint:TestPoint_Pad_D1.0mm</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="HDPlatinum" part="TestPoint" description=""/>
+      <property name="MPN" value="PCB feature"/>
+      <property name="Manufacturer" value="PCB"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="hd-platinum-carrier-rev-a.kicad_sch"/>
+      <property name="exclude_from_bom"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b09b7547-8549-55ec-9cdc-968fc5b9aa2a</tstamps>
+    </comp>
+    <comp ref="TP5">
+      <value>CSN</value>
+      <footprint>TestPoint:TestPoint_Pad_D1.0mm</footprint>
+      <fields>
+        <field name="MPN">PCB feature</field>
+        <field name="Manufacturer">PCB</field>
+        <field name="Footprint">TestPoint:TestPoint_Pad_D1.0mm</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="HDPlatinum" part="TestPoint" description=""/>
+      <property name="MPN" value="PCB feature"/>
+      <property name="Manufacturer" value="PCB"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="hd-platinum-carrier-rev-a.kicad_sch"/>
+      <property name="exclude_from_bom"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>2673c0ae-7b43-5d1b-8c24-1713dccefb7c</tstamps>
+    </comp>
+    <comp ref="TP6">
+      <value>IRQ</value>
+      <footprint>TestPoint:TestPoint_Pad_D1.0mm</footprint>
+      <fields>
+        <field name="MPN">PCB feature</field>
+        <field name="Manufacturer">PCB</field>
+        <field name="Footprint">TestPoint:TestPoint_Pad_D1.0mm</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="HDPlatinum" part="TestPoint" description=""/>
+      <property name="MPN" value="PCB feature"/>
+      <property name="Manufacturer" value="PCB"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="hd-platinum-carrier-rev-a.kicad_sch"/>
+      <property name="exclude_from_bom"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>120d8045-a3de-5428-9dbf-0566c5e2c6fd</tstamps>
+    </comp>
+    <comp ref="TP7">
+      <value>HOST3V3</value>
+      <footprint>TestPoint:TestPoint_Pad_D1.0mm</footprint>
+      <fields>
+        <field name="MPN">PCB feature</field>
+        <field name="Manufacturer">PCB</field>
+        <field name="Footprint">TestPoint:TestPoint_Pad_D1.0mm</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="HDPlatinum" part="TestPoint" description=""/>
+      <property name="MPN" value="PCB feature"/>
+      <property name="Manufacturer" value="PCB"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="hd-platinum-carrier-rev-a.kicad_sch"/>
+      <property name="exclude_from_bom"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>c8dc8dfa-aadb-5ea4-abc3-6f056587d40d</tstamps>
+    </comp>
+    <comp ref="U1">
+      <value>RF2401F20</value>
+      <footprint>HDPlatinum:NiceRF_RF2401F20</footprint>
+      <fields>
+        <field name="MPN">RF2401F20</field>
+        <field name="Manufacturer">NiceRF</field>
+        <field name="Footprint">HDPlatinum:NiceRF_RF2401F20</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="HDPlatinum" part="RF2401F20" description=""/>
+      <property name="MPN" value="RF2401F20"/>
+      <property name="Manufacturer" value="NiceRF"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="hd-platinum-carrier-rev-a.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>f30aab98-1af1-573c-a5da-3feed3888fc4</tstamps>
+    </comp>
+    <comp ref="U2">
+      <value>TLV75533PDBVR</value>
+      <footprint>Package_TO_SOT_SMD:SOT-23-5</footprint>
+      <fields>
+        <field name="MPN">TLV75533PDBVR</field>
+        <field name="Manufacturer">Texas Instruments</field>
+        <field name="Footprint">Package_TO_SOT_SMD:SOT-23-5</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="HDPlatinum" part="TLV75533PDBVR" description=""/>
+      <property name="MPN" value="TLV75533PDBVR"/>
+      <property name="Manufacturer" value="Texas Instruments"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="hd-platinum-carrier-rev-a.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>ac5704ab-4895-5133-a428-d2a177359e42</tstamps>
+    </comp>
+  </components>
+  <libparts>
+    <libpart lib="HDPlatinum" part="C">
+      <fields>
+        <field name="Reference">C</field>
+        <field name="Value">C</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <pins>
+        <pin num="1" name="" type="passive"/>
+        <pin num="2" name="" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="HDPlatinum" part="Ferrite">
+      <fields>
+        <field name="Reference">FB</field>
+        <field name="Value">Ferrite</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <pins>
+        <pin num="1" name="" type="passive"/>
+        <pin num="2" name="" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="HDPlatinum" part="M5Bus_A089">
+      <fields>
+        <field name="Reference">J</field>
+        <field name="Value">M5Bus_A089</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <pins>
+        <pin num="1" name="GND" type="passive"/>
+        <pin num="2" name="G10_/_RF_IRQ" type="passive"/>
+        <pin num="3" name="GND" type="passive"/>
+        <pin num="4" name="G8_/_RF_MISO" type="passive"/>
+        <pin num="5" name="GND" type="passive"/>
+        <pin num="6" name="RESET" type="passive"/>
+        <pin num="7" name="G37_/_ETH_MOSI" type="passive"/>
+        <pin num="8" name="G5_/_RF_MOSI" type="passive"/>
+        <pin num="9" name="G35_/_ETH_MISO" type="passive"/>
+        <pin num="10" name="G9_/_ETH_CS" type="passive"/>
+        <pin num="11" name="G36_/_ETH_SCK" type="passive"/>
+        <pin num="12" name="HOST_3V3" type="passive"/>
+        <pin num="13" name="G44_/_UART0_RX" type="passive"/>
+        <pin num="14" name="G43_/_UART0_TX" type="passive"/>
+        <pin num="15" name="G18_/_RF_CSN" type="passive"/>
+        <pin num="16" name="G17_/_RF_CE" type="passive"/>
+        <pin num="17" name="G12_/_SYS_SDA" type="passive"/>
+        <pin num="18" name="G11_/_SYS_SCL" type="passive"/>
+        <pin num="19" name="G2_/_PA_SDA" type="passive"/>
+        <pin num="20" name="G1_/_PA_SCL" type="passive"/>
+        <pin num="21" name="G6_/_RF_SCK" type="passive"/>
+        <pin num="22" name="G7_/_ETH_RESET" type="passive"/>
+        <pin num="23" name="G13_/_MIC" type="passive"/>
+        <pin num="24" name="G0_/_BOOT" type="passive"/>
+        <pin num="25" name="HPWR_/_HOST_NC" type="passive"/>
+        <pin num="26" name="G14_/_ETH_IRQ" type="passive"/>
+        <pin num="27" name="HPWR_/_HOST_NC" type="passive"/>
+        <pin num="28" name="BUS_5V" type="passive"/>
+        <pin num="29" name="HPWR_/_HOST_NC" type="passive"/>
+        <pin num="30" name="BAT" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="HDPlatinum" part="RF2401F20">
+      <fields>
+        <field name="Reference">U</field>
+        <field name="Value">RF2401F20</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <pins>
+        <pin num="1" name="VCC" type="power_in"/>
+        <pin num="2" name="GND" type="power_in"/>
+        <pin num="3" name="CE" type="input"/>
+        <pin num="4" name="CSN" type="input"/>
+        <pin num="5" name="SCK" type="input"/>
+        <pin num="6" name="MOSI" type="input"/>
+        <pin num="7" name="MISO" type="tri_state"/>
+        <pin num="8" name="IRQ" type="output"/>
+        <pin num="9" name="GND" type="power_in"/>
+        <pin num="10" name="GND" type="power_in"/>
+        <pin num="11" name="ANT_/_50R" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="HDPlatinum" part="R_H">
+      <fields>
+        <field name="Reference">R</field>
+        <field name="Value">R_H</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <pins>
+        <pin num="1" name="" type="passive"/>
+        <pin num="2" name="" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="HDPlatinum" part="R_V">
+      <fields>
+        <field name="Reference">R</field>
+        <field name="Value">R_V</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <pins>
+        <pin num="1" name="" type="passive"/>
+        <pin num="2" name="" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="HDPlatinum" part="TLV75533PDBVR">
+      <fields>
+        <field name="Reference">U</field>
+        <field name="Value">TLV75533PDBVR</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <pins>
+        <pin num="1" name="IN" type="power_in"/>
+        <pin num="2" name="GND" type="power_in"/>
+        <pin num="3" name="EN" type="input"/>
+        <pin num="4" name="NC" type="no_connect"/>
+        <pin num="5" name="OUT" type="power_out"/>
+      </pins>
+    </libpart>
+    <libpart lib="HDPlatinum" part="TestPoint">
+      <fields>
+        <field name="Reference">TP</field>
+        <field name="Value">TestPoint</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <pins>
+        <pin num="1" name="" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="HDPlatinum" part="UFL">
+      <fields>
+        <field name="Reference">J</field>
+        <field name="Value">UFL</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <pins>
+        <pin num="1" name="ANT" type="passive"/>
+        <pin num="2" name="GND" type="passive"/>
+      </pins>
+    </libpart>
+  </libparts>
+  <libraries>
+    <library logical="HDPlatinum">
+      <uri>/work/hardware/kicad/HDPlatinum.kicad_sym</uri>
+    </library>
+  </libraries>
+  <nets>
+    <net code="1" name="ANT" class="Default">
+      <node ref="J2" pin="1" pinfunction="ANT" pintype="passive"/>
+      <node ref="U1" pin="11" pinfunction="ANT_/_50R" pintype="passive"/>
+    </net>
+    <net code="2" name="BUS_5V" class="Default">
+      <node ref="FB1" pin="1" pintype="passive"/>
+      <node ref="J1" pin="28" pinfunction="BUS_5V" pintype="passive"/>
+      <node ref="TP2" pin="1" pintype="passive"/>
+    </net>
+    <net code="3" name="CE_HOST" class="Default">
+      <node ref="J1" pin="16" pinfunction="G17_/_RF_CE" pintype="passive"/>
+      <node ref="R1" pin="1" pintype="passive"/>
+    </net>
+    <net code="4" name="CSN_HOST" class="Default">
+      <node ref="J1" pin="15" pinfunction="G18_/_RF_CSN" pintype="passive"/>
+      <node ref="R2" pin="1" pintype="passive"/>
+    </net>
+    <net code="5" name="GND" class="Default">
+      <node ref="C1" pin="2" pintype="passive"/>
+      <node ref="C2" pin="2" pintype="passive"/>
+      <node ref="C3" pin="2" pintype="passive"/>
+      <node ref="C4" pin="2" pintype="passive"/>
+      <node ref="C5" pin="2" pintype="passive"/>
+      <node ref="J1" pin="1" pinfunction="GND" pintype="passive"/>
+      <node ref="J1" pin="3" pinfunction="GND" pintype="passive"/>
+      <node ref="J1" pin="5" pinfunction="GND" pintype="passive"/>
+      <node ref="J2" pin="2" pinfunction="GND" pintype="passive"/>
+      <node ref="R6" pin="2" pintype="passive"/>
+      <node ref="R8" pin="2" pintype="passive"/>
+      <node ref="R9" pin="2" pintype="passive"/>
+      <node ref="TP1" pin="1" pintype="passive"/>
+      <node ref="U1" pin="10" pinfunction="GND" pintype="power_in"/>
+      <node ref="U1" pin="2" pinfunction="GND" pintype="power_in"/>
+      <node ref="U1" pin="9" pinfunction="GND" pintype="power_in"/>
+      <node ref="U2" pin="2" pinfunction="GND" pintype="power_in"/>
+    </net>
+    <net code="6" name="HOST_3V3" class="Default">
+      <node ref="J1" pin="12" pinfunction="HOST_3V3" pintype="passive"/>
+      <node ref="R9" pin="1" pintype="passive"/>
+      <node ref="TP7" pin="1" pintype="passive"/>
+      <node ref="U2" pin="3" pinfunction="EN" pintype="input"/>
+    </net>
+    <net code="7" name="LDO_IN" class="Default">
+      <node ref="C1" pin="1" pintype="passive"/>
+      <node ref="C2" pin="1" pintype="passive"/>
+      <node ref="FB1" pin="2" pintype="passive"/>
+      <node ref="U2" pin="1" pinfunction="IN" pintype="power_in"/>
+    </net>
+    <net code="8" name="MISO_HOST" class="Default">
+      <node ref="J1" pin="4" pinfunction="G8_/_RF_MISO" pintype="passive"/>
+      <node ref="R5" pin="2" pintype="passive"/>
+    </net>
+    <net code="9" name="MOSI_HOST" class="Default">
+      <node ref="J1" pin="8" pinfunction="G5_/_RF_MOSI" pintype="passive"/>
+      <node ref="R4" pin="1" pintype="passive"/>
+    </net>
+    <net code="10" name="RF_3V3" class="Default">
+      <node ref="C3" pin="1" pintype="passive"/>
+      <node ref="C4" pin="1" pintype="passive"/>
+      <node ref="C5" pin="1" pintype="passive"/>
+      <node ref="R7" pin="2" pintype="passive"/>
+      <node ref="TP3" pin="1" pintype="passive"/>
+      <node ref="U1" pin="1" pinfunction="VCC" pintype="power_in"/>
+      <node ref="U2" pin="5" pinfunction="OUT" pintype="power_out"/>
+    </net>
+    <net code="11" name="RF_CE" class="Default">
+      <node ref="R1" pin="2" pintype="passive"/>
+      <node ref="R6" pin="1" pintype="passive"/>
+      <node ref="TP4" pin="1" pintype="passive"/>
+      <node ref="U1" pin="3" pinfunction="CE" pintype="input"/>
+    </net>
+    <net code="12" name="RF_CSN" class="Default">
+      <node ref="R2" pin="2" pintype="passive"/>
+      <node ref="R7" pin="1" pintype="passive"/>
+      <node ref="TP5" pin="1" pintype="passive"/>
+      <node ref="U1" pin="4" pinfunction="CSN" pintype="input"/>
+    </net>
+    <net code="13" name="RF_IRQ" class="Default">
+      <node ref="J1" pin="2" pinfunction="G10_/_RF_IRQ" pintype="passive"/>
+      <node ref="TP6" pin="1" pintype="passive"/>
+      <node ref="U1" pin="8" pinfunction="IRQ" pintype="output"/>
+    </net>
+    <net code="14" name="RF_MISO" class="Default">
+      <node ref="R5" pin="1" pintype="passive"/>
+      <node ref="U1" pin="7" pinfunction="MISO" pintype="tri_state"/>
+    </net>
+    <net code="15" name="RF_MOSI" class="Default">
+      <node ref="R4" pin="2" pintype="passive"/>
+      <node ref="U1" pin="6" pinfunction="MOSI" pintype="input"/>
+    </net>
+    <net code="16" name="RF_SCK" class="Default">
+      <node ref="R3" pin="2" pintype="passive"/>
+      <node ref="R8" pin="1" pintype="passive"/>
+      <node ref="U1" pin="5" pinfunction="SCK" pintype="input"/>
+    </net>
+    <net code="17" name="SCK_HOST" class="Default">
+      <node ref="J1" pin="21" pinfunction="G6_/_RF_SCK" pintype="passive"/>
+      <node ref="R3" pin="1" pintype="passive"/>
+    </net>
+    <net code="18" name="unconnected-(J1-BAT-Pad30)" class="Default">
+      <node ref="J1" pin="30" pinfunction="BAT" pintype="passive+no_connect"/>
+    </net>
+    <net code="19" name="unconnected-(J1-G0_{slash}_BOOT-Pad24)" class="Default">
+      <node ref="J1" pin="24" pinfunction="G0_/_BOOT" pintype="passive+no_connect"/>
+    </net>
+    <net code="20" name="unconnected-(J1-G1_{slash}_PA_SCL-Pad20)" class="Default">
+      <node ref="J1" pin="20" pinfunction="G1_/_PA_SCL" pintype="passive+no_connect"/>
+    </net>
+    <net code="21" name="unconnected-(J1-G2_{slash}_PA_SDA-Pad19)" class="Default">
+      <node ref="J1" pin="19" pinfunction="G2_/_PA_SDA" pintype="passive+no_connect"/>
+    </net>
+    <net code="22" name="unconnected-(J1-G7_{slash}_ETH_RESET-Pad22)" class="Default">
+      <node ref="J1" pin="22" pinfunction="G7_/_ETH_RESET" pintype="passive+no_connect"/>
+    </net>
+    <net code="23" name="unconnected-(J1-G9_{slash}_ETH_CS-Pad10)" class="Default">
+      <node ref="J1" pin="10" pinfunction="G9_/_ETH_CS" pintype="passive+no_connect"/>
+    </net>
+    <net code="24" name="unconnected-(J1-G11_{slash}_SYS_SCL-Pad18)" class="Default">
+      <node ref="J1" pin="18" pinfunction="G11_/_SYS_SCL" pintype="passive+no_connect"/>
+    </net>
+    <net code="25" name="unconnected-(J1-G12_{slash}_SYS_SDA-Pad17)" class="Default">
+      <node ref="J1" pin="17" pinfunction="G12_/_SYS_SDA" pintype="passive+no_connect"/>
+    </net>
+    <net code="26" name="unconnected-(J1-G13_{slash}_MIC-Pad23)" class="Default">
+      <node ref="J1" pin="23" pinfunction="G13_/_MIC" pintype="passive+no_connect"/>
+    </net>
+    <net code="27" name="unconnected-(J1-G14_{slash}_ETH_IRQ-Pad26)" class="Default">
+      <node ref="J1" pin="26" pinfunction="G14_/_ETH_IRQ" pintype="passive+no_connect"/>
+    </net>
+    <net code="28" name="unconnected-(J1-G35_{slash}_ETH_MISO-Pad9)" class="Default">
+      <node ref="J1" pin="9" pinfunction="G35_/_ETH_MISO" pintype="passive+no_connect"/>
+    </net>
+    <net code="29" name="unconnected-(J1-G36_{slash}_ETH_SCK-Pad11)" class="Default">
+      <node ref="J1" pin="11" pinfunction="G36_/_ETH_SCK" pintype="passive+no_connect"/>
+    </net>
+    <net code="30" name="unconnected-(J1-G37_{slash}_ETH_MOSI-Pad7)" class="Default">
+      <node ref="J1" pin="7" pinfunction="G37_/_ETH_MOSI" pintype="passive+no_connect"/>
+    </net>
+    <net code="31" name="unconnected-(J1-G43_{slash}_UART0_TX-Pad14)" class="Default">
+      <node ref="J1" pin="14" pinfunction="G43_/_UART0_TX" pintype="passive+no_connect"/>
+    </net>
+    <net code="32" name="unconnected-(J1-G44_{slash}_UART0_RX-Pad13)" class="Default">
+      <node ref="J1" pin="13" pinfunction="G44_/_UART0_RX" pintype="passive+no_connect"/>
+    </net>
+    <net code="33" name="unconnected-(J1-HPWR_{slash}_HOST_NC-Pad25)" class="Default">
+      <node ref="J1" pin="25" pinfunction="HPWR_/_HOST_NC" pintype="passive+no_connect"/>
+    </net>
+    <net code="34" name="unconnected-(J1-HPWR_{slash}_HOST_NC-Pad27)" class="Default">
+      <node ref="J1" pin="27" pinfunction="HPWR_/_HOST_NC" pintype="passive+no_connect"/>
+    </net>
+    <net code="35" name="unconnected-(J1-HPWR_{slash}_HOST_NC-Pad29)" class="Default">
+      <node ref="J1" pin="29" pinfunction="HPWR_/_HOST_NC" pintype="passive+no_connect"/>
+    </net>
+    <net code="36" name="unconnected-(J1-RESET-Pad6)" class="Default">
+      <node ref="J1" pin="6" pinfunction="RESET" pintype="passive+no_connect"/>
+    </net>
+    <net code="37" name="unconnected-(U2-NC-Pad4)" class="Default">
+      <node ref="U2" pin="4" pinfunction="NC" pintype="no_connect"/>
+    </net>
+  </nets>
+</export>

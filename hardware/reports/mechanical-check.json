@@ -1,0 +1,1824 @@
+{
+  "result": "PASS",
+  "scope": "Native CAD mechanical and orientation checks; not physical fit certification",
+  "board_file": "kicad/hd-platinum-carrier-rev-a.kicad_pcb",
+  "board_sha256": "7e5922e1767d6735b2ce64764767a85d315e6c77d609ce4797d04cc0802ec12e",
+  "source_revision": "e29c139cbc7c80b5ccc5557e5ab8025a7a19a109",
+  "tolerance_mm": 1e-05,
+  "checks_passed": 95,
+  "checks_total": 95,
+  "checks": [
+    {
+      "check": "M032 50mm outline, chamfers and north notches",
+      "passed": true,
+      "actual": {
+        "edge_count": 16,
+        "vertices_mm": [
+          [
+            0.0,
+            2.0
+          ],
+          [
+            0.0,
+            48.0
+          ],
+          [
+            2.0,
+            0.0
+          ],
+          [
+            2.0,
+            50.0
+          ],
+          [
+            8.5,
+            0.0
+          ],
+          [
+            9.5,
+            1.0
+          ],
+          [
+            12.5,
+            1.0
+          ],
+          [
+            13.5,
+            0.0
+          ],
+          [
+            36.5,
+            0.0
+          ],
+          [
+            37.5,
+            1.0
+          ],
+          [
+            40.5,
+            1.0
+          ],
+          [
+            41.5,
+            0.0
+          ],
+          [
+            48.0,
+            0.0
+          ],
+          [
+            48.0,
+            50.0
+          ],
+          [
+            50.0,
+            2.0
+          ],
+          [
+            50.0,
+            48.0
+          ]
+        ]
+      },
+      "expected": {
+        "edge_count": 16,
+        "vertices_mm": [
+          [
+            0.0,
+            2.0
+          ],
+          [
+            0.0,
+            48.0
+          ],
+          [
+            2.0,
+            0.0
+          ],
+          [
+            2.0,
+            50.0
+          ],
+          [
+            8.5,
+            0.0
+          ],
+          [
+            9.5,
+            1.0
+          ],
+          [
+            12.5,
+            1.0
+          ],
+          [
+            13.5,
+            0.0
+          ],
+          [
+            36.5,
+            0.0
+          ],
+          [
+            37.5,
+            1.0
+          ],
+          [
+            40.5,
+            1.0
+          ],
+          [
+            41.5,
+            0.0
+          ],
+          [
+            48.0,
+            0.0
+          ],
+          [
+            48.0,
+            50.0
+          ],
+          [
+            50.0,
+            2.0
+          ],
+          [
+            50.0,
+            48.0
+          ]
+        ]
+      }
+    },
+    {
+      "check": "Finished thickness is specified 1.6mm",
+      "passed": true,
+      "actual": 1.6,
+      "expected": 1.6
+    },
+    {
+      "check": "Exactly eight NPTH mounting/retention holes",
+      "passed": true,
+      "actual": 8,
+      "expected": 8
+    },
+    {
+      "check": "NPTH at [3, 3]",
+      "passed": true,
+      "actual": [
+        {
+          "xy": [
+            3.0,
+            3.0
+          ],
+          "drill": [
+            3.0,
+            3.0
+          ]
+        }
+      ],
+      "expected": {
+        "xy": [
+          3,
+          3
+        ],
+        "drill": [
+          3.0,
+          3.0
+        ]
+      }
+    },
+    {
+      "check": "NPTH at [47, 3]",
+      "passed": true,
+      "actual": [
+        {
+          "xy": [
+            47.0,
+            3.0
+          ],
+          "drill": [
+            3.0,
+            3.0
+          ]
+        }
+      ],
+      "expected": {
+        "xy": [
+          47,
+          3
+        ],
+        "drill": [
+          3.0,
+          3.0
+        ]
+      }
+    },
+    {
+      "check": "NPTH at [3, 47]",
+      "passed": true,
+      "actual": [
+        {
+          "xy": [
+            3.0,
+            47.0
+          ],
+          "drill": [
+            3.0,
+            3.0
+          ]
+        }
+      ],
+      "expected": {
+        "xy": [
+          3,
+          47
+        ],
+        "drill": [
+          3.0,
+          3.0
+        ]
+      }
+    },
+    {
+      "check": "NPTH at [47, 47]",
+      "passed": true,
+      "actual": [
+        {
+          "xy": [
+            47.0,
+            47.0
+          ],
+          "drill": [
+            3.0,
+            3.0
+          ]
+        }
+      ],
+      "expected": {
+        "xy": [
+          47,
+          47
+        ],
+        "drill": [
+          3.0,
+          3.0
+        ]
+      }
+    },
+    {
+      "check": "NPTH at [7, 3]",
+      "passed": true,
+      "actual": [
+        {
+          "xy": [
+            7.0,
+            3.0
+          ],
+          "drill": [
+            1.8,
+            1.8
+          ]
+        }
+      ],
+      "expected": {
+        "xy": [
+          7,
+          3
+        ],
+        "drill": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "NPTH at [43, 3]",
+      "passed": true,
+      "actual": [
+        {
+          "xy": [
+            43.0,
+            3.0
+          ],
+          "drill": [
+            1.8,
+            1.8
+          ]
+        }
+      ],
+      "expected": {
+        "xy": [
+          43,
+          3
+        ],
+        "drill": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "NPTH at [7, 47]",
+      "passed": true,
+      "actual": [
+        {
+          "xy": [
+            7.0,
+            47.0
+          ],
+          "drill": [
+            1.8,
+            1.8
+          ]
+        }
+      ],
+      "expected": {
+        "xy": [
+          7,
+          47
+        ],
+        "drill": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "NPTH at [43, 47]",
+      "passed": true,
+      "actual": [
+        {
+          "xy": [
+            43.0,
+            47.0
+          ],
+          "drill": [
+            1.8,
+            1.8
+          ]
+        }
+      ],
+      "expected": {
+        "xy": [
+          43,
+          47
+        ],
+        "drill": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "A089 native assembly side is bottom",
+      "passed": true,
+      "actual": "B.Cu",
+      "expected": "B.Cu"
+    },
+    {
+      "check": "A089 has thirty contacts",
+      "passed": true,
+      "actual": 30,
+      "expected": 30
+    },
+    {
+      "check": "J1 pin 1 source position",
+      "passed": true,
+      "actual": [
+        45.32,
+        7.22
+      ],
+      "expected": [
+        45.32,
+        7.22
+      ]
+    },
+    {
+      "check": "J1 pin 1 finished PTH/land",
+      "passed": true,
+      "actual": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      },
+      "expected": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "J1 pin 2 source position",
+      "passed": true,
+      "actual": [
+        42.78,
+        7.22
+      ],
+      "expected": [
+        42.78,
+        7.22
+      ]
+    },
+    {
+      "check": "J1 pin 2 finished PTH/land",
+      "passed": true,
+      "actual": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      },
+      "expected": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "J1 pin 3 source position",
+      "passed": true,
+      "actual": [
+        45.32,
+        9.76
+      ],
+      "expected": [
+        45.32,
+        9.76
+      ]
+    },
+    {
+      "check": "J1 pin 3 finished PTH/land",
+      "passed": true,
+      "actual": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      },
+      "expected": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "J1 pin 4 source position",
+      "passed": true,
+      "actual": [
+        42.78,
+        9.76
+      ],
+      "expected": [
+        42.78,
+        9.76
+      ]
+    },
+    {
+      "check": "J1 pin 4 finished PTH/land",
+      "passed": true,
+      "actual": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      },
+      "expected": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "J1 pin 5 source position",
+      "passed": true,
+      "actual": [
+        45.32,
+        12.3
+      ],
+      "expected": [
+        45.32,
+        12.3
+      ]
+    },
+    {
+      "check": "J1 pin 5 finished PTH/land",
+      "passed": true,
+      "actual": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      },
+      "expected": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "J1 pin 6 source position",
+      "passed": true,
+      "actual": [
+        42.78,
+        12.3
+      ],
+      "expected": [
+        42.78,
+        12.3
+      ]
+    },
+    {
+      "check": "J1 pin 6 finished PTH/land",
+      "passed": true,
+      "actual": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      },
+      "expected": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "J1 pin 7 source position",
+      "passed": true,
+      "actual": [
+        45.32,
+        14.84
+      ],
+      "expected": [
+        45.32,
+        14.84
+      ]
+    },
+    {
+      "check": "J1 pin 7 finished PTH/land",
+      "passed": true,
+      "actual": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      },
+      "expected": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "J1 pin 8 source position",
+      "passed": true,
+      "actual": [
+        42.78,
+        14.84
+      ],
+      "expected": [
+        42.78,
+        14.84
+      ]
+    },
+    {
+      "check": "J1 pin 8 finished PTH/land",
+      "passed": true,
+      "actual": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      },
+      "expected": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "J1 pin 9 source position",
+      "passed": true,
+      "actual": [
+        45.32,
+        17.38
+      ],
+      "expected": [
+        45.32,
+        17.38
+      ]
+    },
+    {
+      "check": "J1 pin 9 finished PTH/land",
+      "passed": true,
+      "actual": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      },
+      "expected": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "J1 pin 10 source position",
+      "passed": true,
+      "actual": [
+        42.78,
+        17.38
+      ],
+      "expected": [
+        42.78,
+        17.38
+      ]
+    },
+    {
+      "check": "J1 pin 10 finished PTH/land",
+      "passed": true,
+      "actual": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      },
+      "expected": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "J1 pin 11 source position",
+      "passed": true,
+      "actual": [
+        45.32,
+        19.92
+      ],
+      "expected": [
+        45.32,
+        19.92
+      ]
+    },
+    {
+      "check": "J1 pin 11 finished PTH/land",
+      "passed": true,
+      "actual": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      },
+      "expected": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "J1 pin 12 source position",
+      "passed": true,
+      "actual": [
+        42.78,
+        19.92
+      ],
+      "expected": [
+        42.78,
+        19.92
+      ]
+    },
+    {
+      "check": "J1 pin 12 finished PTH/land",
+      "passed": true,
+      "actual": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      },
+      "expected": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "J1 pin 13 source position",
+      "passed": true,
+      "actual": [
+        45.32,
+        22.46
+      ],
+      "expected": [
+        45.32,
+        22.46
+      ]
+    },
+    {
+      "check": "J1 pin 13 finished PTH/land",
+      "passed": true,
+      "actual": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      },
+      "expected": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "J1 pin 14 source position",
+      "passed": true,
+      "actual": [
+        42.78,
+        22.46
+      ],
+      "expected": [
+        42.78,
+        22.46
+      ]
+    },
+    {
+      "check": "J1 pin 14 finished PTH/land",
+      "passed": true,
+      "actual": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      },
+      "expected": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "J1 pin 15 source position",
+      "passed": true,
+      "actual": [
+        45.32,
+        25.0
+      ],
+      "expected": [
+        45.32,
+        25.0
+      ]
+    },
+    {
+      "check": "J1 pin 15 finished PTH/land",
+      "passed": true,
+      "actual": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      },
+      "expected": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "J1 pin 16 source position",
+      "passed": true,
+      "actual": [
+        42.78,
+        25.0
+      ],
+      "expected": [
+        42.78,
+        25.0
+      ]
+    },
+    {
+      "check": "J1 pin 16 finished PTH/land",
+      "passed": true,
+      "actual": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      },
+      "expected": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "J1 pin 17 source position",
+      "passed": true,
+      "actual": [
+        45.32,
+        27.54
+      ],
+      "expected": [
+        45.32,
+        27.54
+      ]
+    },
+    {
+      "check": "J1 pin 17 finished PTH/land",
+      "passed": true,
+      "actual": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      },
+      "expected": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "J1 pin 18 source position",
+      "passed": true,
+      "actual": [
+        42.78,
+        27.54
+      ],
+      "expected": [
+        42.78,
+        27.54
+      ]
+    },
+    {
+      "check": "J1 pin 18 finished PTH/land",
+      "passed": true,
+      "actual": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      },
+      "expected": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "J1 pin 19 source position",
+      "passed": true,
+      "actual": [
+        45.32,
+        30.08
+      ],
+      "expected": [
+        45.32,
+        30.08
+      ]
+    },
+    {
+      "check": "J1 pin 19 finished PTH/land",
+      "passed": true,
+      "actual": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      },
+      "expected": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "J1 pin 20 source position",
+      "passed": true,
+      "actual": [
+        42.78,
+        30.08
+      ],
+      "expected": [
+        42.78,
+        30.08
+      ]
+    },
+    {
+      "check": "J1 pin 20 finished PTH/land",
+      "passed": true,
+      "actual": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      },
+      "expected": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "J1 pin 21 source position",
+      "passed": true,
+      "actual": [
+        45.32,
+        32.62
+      ],
+      "expected": [
+        45.32,
+        32.62
+      ]
+    },
+    {
+      "check": "J1 pin 21 finished PTH/land",
+      "passed": true,
+      "actual": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      },
+      "expected": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "J1 pin 22 source position",
+      "passed": true,
+      "actual": [
+        42.78,
+        32.62
+      ],
+      "expected": [
+        42.78,
+        32.62
+      ]
+    },
+    {
+      "check": "J1 pin 22 finished PTH/land",
+      "passed": true,
+      "actual": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      },
+      "expected": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "J1 pin 23 source position",
+      "passed": true,
+      "actual": [
+        45.32,
+        35.16
+      ],
+      "expected": [
+        45.32,
+        35.16
+      ]
+    },
+    {
+      "check": "J1 pin 23 finished PTH/land",
+      "passed": true,
+      "actual": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      },
+      "expected": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "J1 pin 24 source position",
+      "passed": true,
+      "actual": [
+        42.78,
+        35.16
+      ],
+      "expected": [
+        42.78,
+        35.16
+      ]
+    },
+    {
+      "check": "J1 pin 24 finished PTH/land",
+      "passed": true,
+      "actual": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      },
+      "expected": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "J1 pin 25 source position",
+      "passed": true,
+      "actual": [
+        45.32,
+        37.7
+      ],
+      "expected": [
+        45.32,
+        37.7
+      ]
+    },
+    {
+      "check": "J1 pin 25 finished PTH/land",
+      "passed": true,
+      "actual": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      },
+      "expected": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "J1 pin 26 source position",
+      "passed": true,
+      "actual": [
+        42.78,
+        37.7
+      ],
+      "expected": [
+        42.78,
+        37.7
+      ]
+    },
+    {
+      "check": "J1 pin 26 finished PTH/land",
+      "passed": true,
+      "actual": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      },
+      "expected": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "J1 pin 27 source position",
+      "passed": true,
+      "actual": [
+        45.32,
+        40.24
+      ],
+      "expected": [
+        45.32,
+        40.24
+      ]
+    },
+    {
+      "check": "J1 pin 27 finished PTH/land",
+      "passed": true,
+      "actual": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      },
+      "expected": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "J1 pin 28 source position",
+      "passed": true,
+      "actual": [
+        42.78,
+        40.24
+      ],
+      "expected": [
+        42.78,
+        40.24
+      ]
+    },
+    {
+      "check": "J1 pin 28 finished PTH/land",
+      "passed": true,
+      "actual": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      },
+      "expected": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "J1 pin 29 source position",
+      "passed": true,
+      "actual": [
+        45.32,
+        42.78
+      ],
+      "expected": [
+        45.32,
+        42.78
+      ]
+    },
+    {
+      "check": "J1 pin 29 finished PTH/land",
+      "passed": true,
+      "actual": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      },
+      "expected": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "J1 pin 30 source position",
+      "passed": true,
+      "actual": [
+        42.78,
+        42.78
+      ],
+      "expected": [
+        42.78,
+        42.78
+      ]
+    },
+    {
+      "check": "J1 pin 30 finished PTH/land",
+      "passed": true,
+      "actual": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      },
+      "expected": {
+        "drill": [
+          1.0,
+          1.0
+        ],
+        "land": [
+          1.8,
+          1.8
+        ]
+      }
+    },
+    {
+      "check": "J1 pin 1 ground and rectangular polarity mark",
+      "passed": true
+    },
+    {
+      "check": "J1 source polarity anchors",
+      "passed": true
+    },
+    {
+      "check": "A089 bottom housing envelope 5x39mm",
+      "passed": true,
+      "actual": [
+        41.55,
+        5.5,
+        46.55,
+        44.5
+      ],
+      "expected": [
+        41.55,
+        5.5,
+        46.55,
+        44.5
+      ]
+    },
+    {
+      "check": "All SMT components face into ring",
+      "passed": true,
+      "actual": [],
+      "expected": []
+    },
+    {
+      "check": "U1 native side is bottom",
+      "passed": true,
+      "actual": "B.Cu",
+      "expected": "B.Cu"
+    },
+    {
+      "check": "J2 native side is bottom",
+      "passed": true,
+      "actual": "B.Cu",
+      "expected": "B.Cu"
+    },
+    {
+      "check": "U1 pin 1 bottom-side mirror and land",
+      "passed": true,
+      "actual": {
+        "xy": [
+          30.6,
+          14.0
+        ],
+        "land": [
+          2.5,
+          1.0
+        ]
+      },
+      "expected": {
+        "xy": [
+          30.6,
+          14.0
+        ],
+        "land": [
+          2.5,
+          1.0
+        ]
+      }
+    },
+    {
+      "check": "U1 pin 2 bottom-side mirror and land",
+      "passed": true,
+      "actual": {
+        "xy": [
+          30.6,
+          15.27
+        ],
+        "land": [
+          2.5,
+          1.0
+        ]
+      },
+      "expected": {
+        "xy": [
+          30.6,
+          15.27
+        ],
+        "land": [
+          2.5,
+          1.0
+        ]
+      }
+    },
+    {
+      "check": "U1 pin 3 bottom-side mirror and land",
+      "passed": true,
+      "actual": {
+        "xy": [
+          30.6,
+          16.540001
+        ],
+        "land": [
+          2.5,
+          1.0
+        ]
+      },
+      "expected": {
+        "xy": [
+          30.6,
+          16.54
+        ],
+        "land": [
+          2.5,
+          1.0
+        ]
+      }
+    },
+    {
+      "check": "U1 pin 4 bottom-side mirror and land",
+      "passed": true,
+      "actual": {
+        "xy": [
+          30.6,
+          17.810001
+        ],
+        "land": [
+          2.5,
+          1.0
+        ]
+      },
+      "expected": {
+        "xy": [
+          30.6,
+          17.81
+        ],
+        "land": [
+          2.5,
+          1.0
+        ]
+      }
+    },
+    {
+      "check": "U1 pin 5 bottom-side mirror and land",
+      "passed": true,
+      "actual": {
+        "xy": [
+          30.6,
+          19.08
+        ],
+        "land": [
+          2.5,
+          1.0
+        ]
+      },
+      "expected": {
+        "xy": [
+          30.6,
+          19.08
+        ],
+        "land": [
+          2.5,
+          1.0
+        ]
+      }
+    },
+    {
+      "check": "U1 pin 6 bottom-side mirror and land",
+      "passed": true,
+      "actual": {
+        "xy": [
+          30.6,
+          20.349999
+        ],
+        "land": [
+          2.5,
+          1.0
+        ]
+      },
+      "expected": {
+        "xy": [
+          30.6,
+          20.35
+        ],
+        "land": [
+          2.5,
+          1.0
+        ]
+      }
+    },
+    {
+      "check": "U1 pin 7 bottom-side mirror and land",
+      "passed": true,
+      "actual": {
+        "xy": [
+          30.6,
+          21.62
+        ],
+        "land": [
+          2.5,
+          1.0
+        ]
+      },
+      "expected": {
+        "xy": [
+          30.6,
+          21.62
+        ],
+        "land": [
+          2.5,
+          1.0
+        ]
+      }
+    },
+    {
+      "check": "U1 pin 8 bottom-side mirror and land",
+      "passed": true,
+      "actual": {
+        "xy": [
+          30.6,
+          22.89
+        ],
+        "land": [
+          2.5,
+          1.0
+        ]
+      },
+      "expected": {
+        "xy": [
+          30.6,
+          22.89
+        ],
+        "land": [
+          2.5,
+          1.0
+        ]
+      }
+    },
+    {
+      "check": "U1 pin 9 bottom-side mirror and land",
+      "passed": true,
+      "actual": {
+        "xy": [
+          11.4,
+          22.68
+        ],
+        "land": [
+          2.5,
+          1.36
+        ]
+      },
+      "expected": {
+        "xy": [
+          11.4,
+          22.68
+        ],
+        "land": [
+          2.5,
+          1.36
+        ]
+      }
+    },
+    {
+      "check": "U1 pin 10 bottom-side mirror and land",
+      "passed": true,
+      "actual": {
+        "xy": [
+          11.4,
+          15.53
+        ],
+        "land": [
+          2.5,
+          1.36
+        ]
+      },
+      "expected": {
+        "xy": [
+          11.4,
+          15.53
+        ],
+        "land": [
+          2.5,
+          1.36
+        ]
+      }
+    },
+    {
+      "check": "U1 pin 11 bottom-side mirror and land",
+      "passed": true,
+      "actual": {
+        "xy": [
+          11.4,
+          13.53
+        ],
+        "land": [
+          2.5,
+          1.36
+        ]
+      },
+      "expected": {
+        "xy": [
+          11.4,
+          13.53
+        ],
+        "land": [
+          2.5,
+          1.36
+        ]
+      }
+    },
+    {
+      "check": "U1 20.00x13.02mm body outline",
+      "passed": true,
+      "actual": [
+        11.0,
+        12.0,
+        31.0,
+        25.02
+      ],
+      "expected": [
+        11.0,
+        12.0,
+        31.0,
+        25.02
+      ]
+    },
+    {
+      "check": "J2 signal faces radio",
+      "passed": true,
+      "actual": [
+        7.55,
+        13.53
+      ],
+      "expected": [
+        7.55,
+        13.53
+      ]
+    },
+    {
+      "check": "ANT endpoints assigned to correct pads",
+      "passed": true
+    },
+    {
+      "check": "ANT is one straight bottom 3.85mm segment without vias",
+      "passed": true,
+      "actual": {
+        "tracks": 1,
+        "vias": 0,
+        "length_mm": 3.8500000000000005
+      }
+    },
+    {
+      "check": "ANT trace nominal width 0.35mm",
+      "passed": true
+    }
+  ],
+  "physical_checks_still_required": [
+    "finished PCB thickness and seat Z",
+    "actual A089 terminal cross-section and contact insertion",
+    "populated CoreS3 SE and Base LAN v1.2 clearance",
+    "M032 bulkhead location and wall dimensions",
+    "whole-stack M3 screw lengths"
+  ]
+}

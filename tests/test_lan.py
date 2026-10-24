@@ -32,6 +32,44 @@ class RecordFramerTests(unittest.TestCase):
         self.assertEqual(record.connection_id, 107)
         self.assertEqual(record.payload, b"$upd01-")
 
+    def test_nul_padded_actions_preserve_raw_bytes_and_optional_prefix(self) -> None:
+        for prefix, connection_id in ((b"", None), (b"107 ", 107)):
+            for payload in (b"$act00-00-", b"$act01-00-", b"$act02-03-"):
+                with self.subTest(prefix=prefix, payload=payload):
+                    raw = b"\x00" * 30 + prefix + payload
+                    framer = RecordFramer()
+                    self.assertEqual(framer.feed(raw[:17]), [])
+                    self.assertEqual(framer.feed(raw[17:] + b"\n"), [])
+                    record, = framer.feed(b"\r")
+                    self.assertEqual(record.raw, raw)
+                    self.assertEqual(record.payload, payload)
+                    self.assertEqual(record.connection_id, connection_id)
+                    self.assertEqual(record.kind, "action")
+
+    def test_padding_normalization_leaves_opaque_or_malformed_records_unchanged(self) -> None:
+        for raw in (
+            b"\x00\x00binary\xff",
+            b"\x00\x00107 $ct\xff\x00title$",
+            b"\x00\x00107 $done",
+            b"\x00\x00107 $act00-00-extra",
+            b"\x00\x00107 $act00-00-\x00",
+            b"\x00\x00107 $act0-00-",
+            b"\x00\x00107 $act02-3-",
+            b"\x00\x00107 $act03-00-",
+            b"\x00\x00x107 $act00-00-",
+        ):
+            with self.subTest(raw=raw):
+                record = BridgeRecord.from_raw(raw)
+                self.assertEqual(record.raw, raw)
+                self.assertEqual(record.payload, raw)
+                self.assertIsNone(record.connection_id)
+                self.assertEqual(record.kind, "unknown")
+
+        raw = b"107 $ct\xff\x00title$"
+        record = BridgeRecord.from_raw(raw)
+        self.assertEqual(record.raw, raw)
+        self.assertEqual(record.payload, b"$ct\xff\x00title$")
+
 
 class InventoryParserTests(unittest.TestCase):
     def test_sanitized_live_shape_is_binary_safe(self) -> None:

@@ -3,6 +3,14 @@
 
 # Local Platinum shade-control prototype
 
+For the combined original-Platinum TCP interface, HTTP controls, discovery, and
+the exercised 250 kbps RF backend, use [`bridge-emulate`](../README.md#bridge-emulator).
+This page also documents the older `bridge-serve` command and its separate
+2 Mbps experimental backend; its RF validation status must not be confused
+with the observed 250 kbps shade responses. Original-app control and an
+existing-target Sync are demonstrated; new-identity enrollment, the new
+room/shade setup flow, and a specific Control4 driver are not yet validated.
+
 The prototype exposes an HTTP API and a browser control page for handheld
 group Up/Down commands and experimental individual-shade position requests. It
 can simulate requests or synthesize finite commands for a bladeRF. The service
@@ -15,6 +23,21 @@ for observed values 0, 128, and 255 across two rooms. Same-target comparisons
 isolate the position byte, and same-room comparisons support distinct shade
 masks. This does not establish every target/value or SDR-to-shade operation.
 Position mappings remain disabled by default until validated for that target.
+
+The combined `bridge-emulate` runtime also exposes authenticated
+`POST /api/jog` with `{"shade": 0, "request_id": "example-jog"}`. It requires
+the target's separate `jog_enabled` Boolean, defaulting to `false`, and a Jog
+backend. The receipt reports operation `jog` and `jog_confirmed: false`; it
+never changes requested position. HTTP body, bearer-token, host/origin,
+serialization, and idempotency rules are the same as for other commands.
+This endpoint does not add Jog to the older direct 2 Mbps hardware backend.
+
+For recreated or rebound inventory identities, the private configuration flag
+also requires an explicit matching grant whose operations include `jog`.
+Sync-only grants remain Sync-only. Room/shade CRUD and product selection never
+grant RF permission; deletion, rebinding, or a room product change revokes the
+identity-bound grant. Jog and position share the narrow 250 kbps backend and
+its persistent sequence allocator, even when Sync uses the wide profile.
 
 Generated handheld packets decode in software across all three channels,
 including release packets. Protected single-channel RF tests recovered
@@ -37,7 +60,7 @@ Existing configurations with `remote_id`, `groups`, and `api_token` remain
 compatible. An optional `shades` object adds individual targets. Group keys are
 strings `"1"` through `"4"`; shade keys are canonical decimal strings `"0"`
 through `"99"`. Configure only the groups and shades intended for control.
-`groups` may be empty when at least one shade is present. A group mapping must
+Both maps may be empty for database setup without RF control. A group mapping must
 be verified independently; a room's shade mask is not a handheld group number.
 
 This creates a disabled example shade and a fresh API token. Both RF identities
@@ -88,6 +111,21 @@ RF identities and masks, while retaining display labels and room/shade numbers.
 Populate a real private configuration from local evidence, keeping unvalidated
 targets disabled and unrelated rooms absent. Enabling a mapping is an explicit
 configuration change, not an automatic consequence of decoding a packet.
+
+The combined emulator persists room/shade edits, requested positions, and
+virtual clock fields together in its private state file. The imported snapshot
+remains the seed; restarting does not overwrite later edits. Renaming preserves
+an existing RF grant. Deleting, recreating, moving, or changing the product/RF
+binding revokes it, including after restart. Creating database entries alone
+does not authorize their RF control or Sync.
+
+Deliberate enrollment can grant a new entry a specific operation through
+`InventoryStore.authorize_target`. The caller supplies the reviewed inventory
+revision and exact room ID, RF identity, and mask. The stored grant also binds
+the product type and is intersected with the private configuration's flags.
+It never enables another operation or survives a later binding change. Apply
+maintenance with the emulator stopped, or through its shared serialized
+inventory mutation API; do not edit a live state file from a second process.
 
 ## Exercise the HTTP service without RF
 

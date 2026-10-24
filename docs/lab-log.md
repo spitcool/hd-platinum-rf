@@ -5,7 +5,7 @@
 
 > **Environment-specific, not canonical.** This file records sanitized capability qualifications and results for Hunter Douglas Platinum protocol work. It does not define what every contributor must own or use. Canonical requirements are in [Testing and validation](testing.md) and the [Bill of materials](bom.md).
 
-Last updated: 2026-10-23 (America/Chicago)
+Last updated: 2026-10-24 (America/Chicago)
 
 Private network addresses, MAC addresses, household labels, serial numbers, and local filesystem paths are intentionally excluded from this tracked log.
 
@@ -14,8 +14,9 @@ Private network addresses, MAC addresses, household labels, serial numbers, and 
 | Capability | Public qualification status | Evidence still required |
 | --- | --- | --- |
 | USB 3 capture host and storage path | Short counter-stream check passed at `48 MS/s`; `61.44 MS/s` failed continuity | Identify the physical port and qualify longer capture continuity. USB reports SuperSpeed (`5 Gb/s`); five seconds of counter data at `48 MS/s` had no discontinuities. |
-| Original Platinum App Bridge LAN/RF reference | Inventory, bounded primary-position transactions, and correlated position-payload comparisons observed | Physical position feedback, emitting component, and SDR-to-shade interoperability are not established; private address and identifiers remain outside the repository. |
-| Wideband SDR capture and transmit path | Receive bring-up and limited protected 8 MS/s TX checks completed | bladeRF 2.0 micro xA4 initialized; firmware/FPGA versions recorded below. Independent receiver, calibrated RF response, and observed shade interoperability remain pending. |
+| Original Platinum App Bridge LAN/RF reference | Inventory, bounded transactions, correlated payloads, and operator-observed reference movement | General position feedback and complete application semantics remain unresolved; private address and identifiers remain outside the repository. |
+| Wideband SDR capture and transmit path | Protected packet checks and operator-observed 250 kbps position responses through private helpers and the public emulator | Independent receiver, calibrated RF response, repeatability, and broader shade coverage remain pending. The exercised public path is the 250 kbps backend, separate from the 2 Mbps position backend. |
+| Original-app emulator compatibility | Discovery, inventory loading, primary-position control, and an existing-target Sync response demonstrated with the original bridge off | New-identity enrollment, room/shade editing acceptance, broader application behavior, and Control4 remain unverified. |
 | SDR mechanical protection and cooling | Not yet qualified | Verify fit, connector clearance, and ventilation for the selected enclosure. |
 | Nordic-compatible `2 Mbps` reference link | Not yet qualified | Record board revisions used for the test and validate a known reference link. |
 | Six-channel digital logic capture | Not yet qualified | Record the software version used and validate digital capture before probing a spare remote. |
@@ -230,6 +231,117 @@ configuration, targets, and transfer instructions are in a private Downloads
 document on the desktop. The final offline suite passes 129/129 with analysis
 dependencies; the base environment passes 108 with 21 optional DSP skips.
 
+### Laptop reference captures and narrow candidate — 2026-10-24
+
+Testing resumed on a laptop approximately six feet from the authorized target.
+USB reported SuperSpeed, the verified FPGA was loaded temporarily, and all bias
+tees were off. A five-second 48 MS/s receive check had zero timestamp gaps and
+overruns. The package build and all **132 software tests** passed after fixing
+recognition of NUL-padded LAN action records while preserving their raw bytes.
+
+The operator observed the original bridge move the target, including a return
+to closed with **all repeaters unplugged**. This establishes physical response
+for those original-bridge commands, not SDR interoperability. Fresh 2 Mbps
+references show roughly 600 µs same-channel spacing, compared with the earlier
+roughly 702 µs recordings; these are capture-specific results.
+
+Analysis of fresh and restored IQ recovered 2440 MHz packets at 250 kbps with
+the public three-byte `E7 E7 E7` address, nine-bit PCF, 9- and 12-byte payloads,
+and valid CRC-16/zero-residue checks. Independent demodulation supported the
+packet bytes. Early and later groups support a repeater-forwarding hypothesis;
+their complete application semantics and acknowledgment behavior remain open.
+
+The bridge-only closed-position source yielded eight verified packets, four of
+each payload length. Two expected slots in the ten-slot pattern were obscured
+by interference; an emitted-packet denominator is not independently established.
+A candidate copied those eight packets and their timing, leaving the two slots
+silent. Its eight written-IQ frames decoded exactly in offline checks.
+
+**One finite over-the-air trial** submitted the approximately 112 ms candidate
+at 2440 MHz, 250 kbps, 8 MS/s, and TX system gain 35 dB. The original bridge was
+off and one UXUPR was powered. The operator reported **no movement**. There was
+no automatic retry. Missing signaling, application state, waveform assumptions,
+and hardware delivery remain possible explanations; this single incomplete
+trial does not establish a protocol failure or a need for more power.
+
+After fresh operator confirmation of the protected nominal 40 dB cable path,
+three finite copies of the same approximately 112 ms candidate were transmitted
+at TX gains `-23`, `0`, and `35 dB`, with RX gain `40 dB`. Each one-second
+recording used `8 MS/s`, center `2440 MHz`, and `1.5 MHz` bandwidth, and had zero
+overruns, timestamp gaps, or clipped samples. The two lower gains were below
+useful SNR. At `35 dB`, the baseline decoder recovered seven expected packets;
+`300–350 kHz` filter refinements recovered the eighth. All eight complete bit
+strings, CRCs, and zero residues matched the generated artifact.
+
+Template correlation placed all eight received bursts at one common offset of
+86 samples (`10.75 µs`) relative to the submitted waveform. Relative deviation
+was approximately `±160 kHz`. These shared-oscillator measurements support
+delivery of this eight-packet artifact through the conducted path; they do not
+calibrate absolute frequency, RF power, attenuation, or antennas, and do not
+establish shade acceptance. The two obscured source slots remain absent from
+that candidate.
+
+A fresh bridge-only closed-position recording with all repeaters off recovered
+one complete observed train of ten CRC-valid packets: five 12-byte and five
+9-byte packets. Two independent demodulation methods agreed on their complete
+bits, and the operator confirmed closure. A subsequent 2440 MHz midpoint
+reference produced operator-confirmed halfway movement. A new candidate copied
+all ten closed-source packets, including PID, `NO_ACK`, CRC, and relative timing,
+with the same PHY as the conducted artifact. Independent written-IQ checks
+recovered all ten exactly; every quiet interval was zero and no samples clipped.
+The file lasts **112.134 ms**. This is a complete observed train, not proof of
+the complete application exchange beyond the recorded band and time.
+
+With the original bridge off, one UXUPR on, and the antenna on TX1, one finite
+trial at TX system gain **35 dB** and one identical trial at **50 dB** each
+produced **no movement and no observed repeater LED response**, as confirmed by
+the operator. These were the first **three over-the-air trials**: the
+earlier eight-packet trial and these two ten-packet trials. Gain is a device
+setting, not measured RF power; disabled gain-stage readback is not an active
+output-power measurement.
+
+The fourth trial used the **unchanged ten-packet closed candidate** and its
+original flat carrier lead, with TX gain `50 dB` and concurrent three-second RX
+at gain `40 dB`, `8 MS/s`, `2440 MHz`, and `1.5 MHz` bandwidth. TX1 had a direct
+antenna; RX1 had a second antenna through a nominal `30 dB` pad and DC block;
+TX2 was terminated. The original bridge was off and one UXUPR was on. This was
+a radiated observation, not the earlier nominal 40 dB conducted path. Before
+IQ submission, enabled TX1 read back overall gain `50 dB`, DSA `-16 dB`, and
+frequency `2439999998 Hz`.
+
+The recording recovered **20 CRC-valid packets**: the ten submitted packets and
+ten later packets consistent with repeater forwarding. The later 12-byte
+payloads retained the closed command; the 9-byte packets retained their group
+and countdown fields while byte 7 changed from `6` to `5`, with the corresponding
+checksum change. The operator reported **shade movement**; exact full closure
+and the repeater LED were not confirmed on this run.
+
+At the operator's explicit request for native position `128`, the fifth trial
+used the same successful schedule, PID/`NO_ACK`, and PHY. Its long payload came
+from four fresh midpoint observations. Four short payloads matched captured
+countdown values `3` through `0`; count `4` was constructed from the working
+template, the freshly observed group field, and the validated application XOR
+rule. All outer CRCs were recomputed, and independent written-IQ checks passed.
+This is **capture-supported generation**, not an exact captured replay. The
+operator confirmed **roughly halfway and a repeater LED response**.
+The midpoint recording also recovered all ten transmitted packets and ten
+forwarded packets with valid CRCs. The response preserved the midpoint payload
+and group/countdown fields, again changing byte 7 from `6` to `5`; it began
+about 29.9 ms after the final transmitted CRC. Neither recording had clipping,
+timestamp gaps, or overruns.
+
+The laptop session totals **five over-the-air trials**: three without observed
+movement followed by two observed responses. A leading-zero waveform variant
+was prepared but **not transmitted**; it did not cause the breakthrough. The
+effects of concurrent RX, a second antenna, and connector reseating remain
+unisolated. Neither an RX requirement nor universal protocol compatibility is
+established. The working 250 kbps helpers remain private and are not integrated
+into the public position backend.
+
+Radio sessions are closed with no further hardware action planned. The shade
+is roughly halfway, the two-antenna setup remains connected, the original
+bridge is off, and one UXUPR is on.
+
 ### Remaining bench work
 
 1. Extend the `48 MS/s` USB/storage continuity check and identify the physical USB port; investigate the `61.44 MS/s` counter failure before using that rate.
@@ -239,6 +351,168 @@ dependencies; the base environment passes 108 with 21 optional DSP skips.
 5. Establish an independent Nordic reference link.
 6. Use a logic analyzer only after establishing a mechanically safe spare-remote probe plan.
 7. Validate candidate position transmission and physical target response within the operator's current room scope; preserve the distinction between bridge-reported state and observed motor position.
+
+## Integrated bridge emulator — 2026-10-24
+
+The public `bridge-emulate` runtime now shares the authenticated HTTP dispatcher
+with an original-protocol TCP 522 server. It imports the original raw inventory,
+keeps requested positions separately, durably reserves RF sequences, and uses
+the exercised 250 kbps profile with concurrent RX. Local software verification
+passed 189 tests and built both distributions.
+
+One live TCP stage/release requested the observed target's closed position.
+The client observed the action-end marker; a new snapshot showed the requested
+position. The operator confirmed closure while the original bridge was off.
+Offline decoding recovered all ten generated packets exactly and ten matching
+response packets, with valid CRCs and no capture gaps or clipping. The response
+group began about 6.48 ms before the final source packet finished; it was not a
+strictly subsequent non-overlapping group. This is the sixth laptop OTA burst
+and third observed shade response, including the two earlier private-helper runs.
+
+A graceful restart preserved requested state and the next sequence. The
+optional discovery responder answered a LAN broadcast; the original mobile app
+then found the emulator and updated its bridge address. The app's reconnect
+loop exposed previously unsupported `$sdt`, `$stm`, and `$chksy` startup
+commands in the private TCP journal. Discovery is demonstrated on this setup;
+mobile control, enrollment, and a Control4 client remained separate checks at
+this checkpoint. Subsequent app-control and Sync observations are recorded below.
+
+### Original app control and pairing-reference capture — 2026-10-24
+
+The original bridge returned `$chksy01-` for a current-year check. Replacing the
+provisional `$done` reply made the original app send `$dat` and display the
+existing rooms and shades. The app then sent a primary-position command with
+native value `126`, without a final hyphen, followed by `$rls`. The public RF
+backend submitted it, and the operator confirmed roughly-halfway movement with
+the original bridge off. This was the seventh laptop OTA burst and fourth
+observed response. The full software suite passed 192 tests and the package built.
+
+For enrollment research, the emulator was stopped and a private transparent TCP
+recorder connected the app to the original bridge. The original database was
+saved before changes. A 60-second, receive-only 48 MS/s capture centered on
+2452 MHz completed with zero timestamp gaps and overruns. Informational metadata
+bits `0x30000` report mini-expansion pin states per the installed libbladeRF
+header; they are preserved separately from errors. An earlier recording had
+stopped before readiness because it treated those flags as errors.
+
+The app issued two sync requests and several jog requests for the authorized
+target. The operator reported an accidental Jog press, so observed movement is
+not yet isolated evidence of enrollment. The first complete sync interval
+precedes the first recorded Jog request; the later sync interval is partial and
+mixed with Jog requests. The shade database entry was not deleted during this
+reference; this capture alone does not demonstrate emulator enrollment.
+
+### Existing-target Sync and mutable app inventory — 2026-10-24
+
+Analysis isolated the first original-bridge Sync interval and its RF packets
+before the first Jog request. The public emulator now accepts the observed
+`$rscII-` request through a separate Sync dispatcher and an explicit per-target
+allowlist. It reports action start and completion without treating Sync as a
+position request. The RF backend submits the capture-supported 250 kbps Sync
+profile and retains eighteen seconds of concurrent receive data.
+
+In a subsequent isolated emulator test, the original bridge was off. The
+operator used Sync and the receiver's manual button, sent no app Jog request,
+and observed the existing authorized shade jog. This establishes an
+existing-target Sync response in that setup. The record was not first recreated
+under a new RF identity, so full new-identity enrollment remains unverified.
+
+Static analysis of the user-supplied Android application recovered a catalog of
+25 product types and exact room/shade create, edit, and delete request grammar.
+The name field uses Java UTF-16 code-unit length and a 25-unit UI limit. The APK
+was inspected as evidence; no application installation or execution was needed.
+Its commands do not specify new record IDs, room RF identities, or shade slots.
+The emulator's allocation and metadata cascade choices are implementation
+policies, not established original-firmware behavior.
+
+Mutable inventory support now uses that grammar. The store
+atomically persists raw records, requested-position overlays, clock state, and
+RF revocations; it migrates the earlier position-only state after checking the
+original inventory hash. Known room and shade definitions are emitted in
+ascending stable-ID order, while opaque records retain their bytes and relative
+order. New and rebound records remain disabled for RF.
+
+The Android parser indexes room and shade lists by numeric ID. LAN deletion
+therefore rejects operations that would create ID holes, rather than silently
+renumbering identities. Recognized scene dependencies also block deletion;
+metadata deletion is not an RF unpairing operation. Offline store tests cover
+restart, migration, ID reuse, ordering, atomic-write failures, and RF revocation.
+The original app created a room and shade and reached the Sync/Jog screen.
+Entering the new room required an app restart; immediate room refresh remains
+unresolved.
+
+### New-identity Sync delivery comparison — 2026-10-24
+
+The operator reported no enrollment jog for the new identity. Four retained
+consecutive app-requested Sync recordings each contain nine exact transmitted
+packets. Two also contain matching later 2440 MHz response groups, with nine
+and eight decoded packets respectively; the other two contain none under the
+tested decoder settings. A subsequent existing-identity control contains a
+complete ten-packet response group. All five recordings have continuous sample
+timestamps and no clipping. The first of five app requests aged out of the
+rolling artifact store before analysis and is excluded from these counts.
+
+This demonstrates intermittent response to both identities, rather than a
+general rejection of the newly allocated room identity. It does not establish
+the repeater's native shade-facing transmission or successful enrollment. The
+transmitted waveform was unchanged; a prepared preamble variant was not used.
+Closed recordings and their plans were preserved outside rolling retention.
+
+A subsequent native-only recording at 2452 MHz contained no decoded frames;
+an original-reference excerpt resampled to the same 8 MS/s successfully decoded,
+but the native-only file could not establish whether that request reached the
+repeater. A proposed simultaneous 48 MS/s RX / 8 MS/s TX configuration was
+refused before streaming because configuring RX changed the TX sample rate.
+Its sequence reservation was retained, and no IQ was submitted.
+
+A private simultaneous recording then used 32 MS/s in both directions, within
+the existing aggregate streaming envelope. TX remained at 2440 MHz with
+1.5 MHz bandwidth and gain 50; RX used 2446 MHz with 32 MHz bandwidth and gain
+30. This covers 2440 MHz and the native 2433/2452 MHz channels, but excludes
+2471 MHz. Fourfold interpolation preserved every original sample on its source
+grid, all ten packet bit strings, and the 112.134 ms schedule. Independent
+decoding verified the written IQ; interpolation was not treated as hardware
+qualification by itself.
+
+The completed, continuous recording contains eight decoded own packets and a
+complete ten-packet matching downstream group at 2440 MHz. Native decoding at
+2452 MHz recovers 2,181 held-code packets followed by 34 release-tail packets,
+all carrying the newly allocated identity and mask. The detected native train
+spans 15.267 seconds. Alternate filtering also recovers the same held/tail
+bodies. The original bridge was off, and no manual shade-button press was
+requested during this recording. This establishes native forwarding of the
+new identity in that trial; physical enrollment remains unconfirmed.
+
+### Captured Jog and public implementation — 2026-10-24
+
+Controlled original-bridge Jog requests staged feature `12`, value `000`, and
+received feature-12 status `001` followed by `$done`. After release, the narrow
+RF command carried feature `0x0c`, value `1`, and flags `1`. One bounded excerpt
+contains all ten source packets, with short countdowns `4` through `0`, the
+standard PID cycle and no-ACK field; matching later packets were also recovered.
+That source recording was interrupted outside the selected interval, so it is
+not presented as a complete continuous capture.
+
+Independent offline comparison matched all ten full source packet bitstrings
+to the public Jog encoder and recovered them from the written IQ. The public
+waveform keeps the previously exercised finite schedule rather than copying
+this Jog's exact timing: its first long-to-short gap is `805 µs` longer; after
+aligning the first short packet, the other nine starts differ by at most
+`7.25 µs`. No hardware transmission of the new public Jog path was performed
+during implementation.
+
+The original Jog produced target-specific native traffic at `2452 MHz`, while
+Sync for that same original-created identity had been decoded at `2471 MHz`.
+This is a same-identity counterexample to a room-only channel assignment rule;
+the selection mechanism and emitting device remain unisolated. Physical
+movement on the new binding was not observed, including during the
+original-system enrollment checks. Full enrollment remains unresolved.
+
+Software now supports separately enabled Jog through TCP stage/release and
+authenticated HTTP, using the shared narrow backend and persistent sequence
+allocator. Default-off permissions, grant revocation, rejected mixed batches,
+single-use release, no position-overlay writes, and failure cleanup have
+fictional-fixture and fake-radio coverage. A Sync-only grant never enables Jog.
 
 ## Logging rule
 

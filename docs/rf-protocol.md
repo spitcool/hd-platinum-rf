@@ -3,11 +3,11 @@
 
 # Hunter Douglas Platinum RF protocol
 
-Status: working specification with local handheld and bridge-command-correlated position decoding, evidence review dated 2026-10-23.
+Status: working specification with local handheld/wide-position decoding and two observed 250 kbps SDR shade responses, evidence review dated 2026-10-24.
 
-This document specifies the legacy Hunter Douglas **Platinum** four-group hand-remote signal, including the remote identified by part number `2984495100`, and position packets received during original App Bridge transactions. The latter use the wide remote-style framing, but their emitting component has not been isolated: it could be the bridge, a repeater, or another associated transmitter. The Bridge's FCC-tested narrow transmission therefore remains a separate, undecoded observation. This document does not describe the later PowerView/Pebble protocol. The original bridge's installation-specific network address is not part of either RF protocol.
+This document specifies the legacy Hunter Douglas **Platinum** four-group hand-remote signal, including the remote identified by part number `2984495100`, and packets received during original App Bridge transactions. These include wide remote-style position frames and a separately decoded 2440 MHz, 250 kbps ESB signal. The relationship between those paths and each physical emitter remains under investigation. This document does not describe the later PowerView/Pebble protocol. Installation-specific identities and network addresses remain private.
 
-The practical result so far is that Platinum is not Wi-Fi or Bluetooth. The handheld uses a proprietary application payload carried by a Nordic-style 2.4 GHz GFSK packet radio. Initial local IQ decoding recovered Group 1 Up, Down, and their following release-tail codes with valid CRCs. For this captured remote, the supported layout is an **88-bit frame without a Packet Control Field**, at approximately `2 Mbps`. This differs from the earlier datasheet-based 97-bit hypothesis. Generated packets have subsequently passed protected conducted tests on all three frequencies; see the [lab log](lab-log.md#finite-transmitter-prototype--2026-10-23). Observed shade operation, the full action matrix, independent Nordic-receiver cross-check, and general timing qualification remain incomplete.
+The practical result so far is that Platinum is not Wi-Fi or Bluetooth. The handheld uses a proprietary application payload carried by a Nordic-style 2.4 GHz GFSK packet radio. Initial local IQ decoding recovered Group 1 Up, Down, and their following release-tail codes with valid CRCs. For this captured remote, the supported layout is an **88-bit frame without a Packet Control Field**, at approximately `2 Mbps`. This differs from the earlier datasheet-based 97-bit hypothesis. Generated packets have subsequently passed protected conducted tests on all three frequencies; see the [lab log](lab-log.md#finite-transmitter-prototype--2026-10-23). Separate private 250 kbps helpers have now produced two operator-observed responses on one shade. Repeatability, the full action matrix, an independent Nordic-receiver cross-check, and general timing qualification remain incomplete; the public 2 Mbps position backend has not gained this new path.
 
 ## Evidence labels
 
@@ -94,7 +94,91 @@ payload also passed CRC in a noisy outer-channel trial; it is retained privately
 as an anomaly, excluded from expected-target counts, and not attributed to a
 second identity. The [lab log](lab-log.md#original-bridge-position-captures--2026-10-23)
 records the sanitized comparison matrix. Candidate position waveform generation
-is implemented offline; SDR-to-shade interoperability remains unverified.
+is implemented offline; interoperability of this 2 Mbps path remains unverified.
+
+## 2440 MHz bridge and repeater observations — 2026-10-24
+
+**[LOCAL OBSERVED]** Fresh and restored recordings support approximately
+`250 kbps` binary FSK near `2440 MHz`, with an ESB layout distinct from the
+wide five-byte position packets:
+
+```text
+8-bit preamble | 24-bit E7 E7 E7 address | 9-bit PCF | 9- or 12-byte payload | 16-bit CRC
+```
+
+The complete frames contain 129 or 153 bits. The PCF length matches the recovered
+payload length; captured PID and `NO_ACK` fields are retained. CRC-16 over
+address, PCF, and payload validates with polynomial `0x1021`, initial value
+`0xffff`, and zero residue over the received codeword. Independent demodulation
+supports the bytes. Installation payloads and their CRC values remain private.
+
+**[LOCAL OBSERVED / INFERENCE]** Early and later packet groups support repeated
+or forwarded signaling involving a repeater. Payload comparisons support target
+and position associations, but the roles of the two packet lengths, sequencing
+fields, acknowledgment behavior, and replay acceptance are not fully established.
+They must not be promoted to a complete application protocol or a proven wake-up.
+
+**[LOCAL OBSERVED]** With all repeaters unplugged, the original bridge still
+produced operator-observed closed movement on the authorized target. That source
+capture initially yielded eight CRC-validated packets, four of each length. Two expected
+slots were obscured by interference. This does not establish the exact emitted
+packet count or which packet caused the motion. A fresh bridge-only closed
+reference recovered one complete observed train of ten packets, five of each
+length, with independent agreement on every frame and operator-confirmed
+closure. A subsequent 2440 MHz midpoint reference produced observed halfway
+movement. Complete here describes the recorded train, not the full application
+exchange outside the captured frequency and time window.
+
+Fresh 2 Mbps reference captures also show about **600 µs same-channel spacing**,
+versus about **702 µs** in the earlier recordings. Preserve those results with
+their capture conditions; neither cadence is a universal protocol constant.
+
+**[LOCAL OBSERVED]** One experimental candidate preserved the eight recovered
+250 kbps packets and left the two obscured slots silent. Its approximately
+112 ms waveform passed offline frame checks. One finite trial at TX system gain
+35 dB, with the original bridge off and one UXUPR powered, produced **no observed
+movement**. This incomplete exchange cannot falsify the protocol or diagnose a
+power problem.
+
+Subsequent protected nominal 40 dB loopback recovered all eight exact candidate
+frames at TX gain 35 dB and RX gain 40 dB, including CRC and zero residue; one
+packet required narrower receive filtering. All three bounded gain trials had
+continuous, unclipped recordings. Relative timing and approximately `±160 kHz`
+deviation agreed with the artifact. Shared-oscillator conducted checks do not
+qualify absolute frequency, radiated power, antennas, or shade acceptance.
+
+A new **112.134 ms** candidate preserved all ten frames from the complete
+observed source train and their timing, using the same PHY as the conducted
+artifact. Independent written-IQ decoding recovered every exact frame with valid
+CRC. With the original bridge off and one UXUPR on, one trial at gain **35 dB**
+and one identical trial at **50 dB** each produced operator-confirmed **no
+movement and no repeater LED response**. Including the earlier eight-packet
+trial, these were the first three over-the-air trials in this laptop session.
+These gain settings do not measure radiated power.
+
+**[LOCAL OBSERVED]** A fourth trial used the unchanged closed candidate at TX
+gain 50 dB with concurrent RX through a second antenna, nominal 30 dB pad, and
+DC block. The original bridge was off and one UXUPR was on. Active TX readback
+was 50 dB overall, -16 dB DSA, and `2439999998 Hz`. The operator reported **shade
+movement**, without confirming exact full closure. RX recovered the ten
+submitted frames plus ten later frames. Later long payloads retained the closed
+command; short payloads retained their group/countdown fields while byte 7
+decremented from `6` to `5` with its checksum change. This supports forwarding
+and a hop-count interpretation, without establishing all field semantics.
+
+A fifth trial used capture-supported midpoint generation on the successful
+schedule and PHY. The long payload was copied from fresh native-`128` captures;
+four short payloads matched captured countdown values `3` through `0`, while
+the missing count `4` used the working template, observed group field, and
+validated XOR rule. All outer CRCs were recomputed. The operator confirmed
+**roughly halfway and a repeater LED response**. This was not an exact replay.
+
+Both observed successes used the original flat carrier lead. A leading-zero
+variant was prepared but never transmitted. The five-trial session does not
+isolate why the first three failed: concurrent RX, the second antenna, and
+connector reseating changed before success. RX is not established as necessary,
+nor is the complete protocol solved. Radio sessions are closed and no further
+hardware action is planned. See the [lab log](lab-log.md#laptop-reference-captures-and-narrow-candidate--2026-10-24).
 
 ## Compatibility boundary: do not mix generations
 
@@ -102,7 +186,7 @@ is implemented offline; SDR-to-shade interoperability remains unverified.
 | --- | --- | --- | --- |
 | Legacy Platinum hand remote | `2433`, `2452`, and `2471 MHz`; GFSK; community capture reports `2 Mbps`, 3-byte address, and 5-byte payload | FCC IDs [`UXURC4U`](https://fccid.io/UXURC4U) and [`UXURC4U2`](https://fccid.io/UXURC4U2) occupy `2433–2471 MHz`. The [`UXURC4U2` test report](https://fcc.report/FCC-ID/UXURC4U2/1688109.pdf) measured a wide 99%-power bandwidth of `3.38`, `3.65`, and `4.08 MHz` at those centers. | **Primary target of this document** |
 | Platinum wall switch | `2433`, `2452`, and `2471 MHz`; GFSK; measured 20 dB widths `1.80`, `1.98`, and `1.68 MHz` | FCC ID [`UXUWS4U`](https://fccid.io/UXUWS4U), model/part `2986340000`, [test report](https://fccid.io/UXUWS4U/Test-Report/test-report-1092829.pdf) | **Related and consistent with the wide remote family; payload not decoded here** |
-| Platinum App Bridge | Three main channels plus a `2440 MHz` control channel; all measured much narrower than the handheld signal | Bridge FCC ID [`UXUPC`](https://fccid.io/UXUPC); its [Part 15.249 report](https://fccid.io/UXUPC/Test-Report/SC1206696B-FCC-Part-15-249-RSS210-Test-Report-1757162.pdf) reports about `0.12–0.14 MHz` 99%-power bandwidth and `0.08–0.11 MHz` 20 dB bandwidth. It calls `2440 MHz` a short Bridge↔Repeater “Shock Burst” handshake and says main RF transmits sequentially at `2433/2452/2471`. | **Narrow transmission undecoded; local wide position frames are command-correlated but their emitter is unassigned** |
+| Platinum App Bridge | Three main channels plus a `2440 MHz` control channel; all measured much narrower than the handheld signal | Bridge FCC ID [`UXUPC`](https://fccid.io/UXUPC); its [Part 15.249 report](https://fccid.io/UXUPC/Test-Report/SC1206696B-FCC-Part-15-249-RSS210-Test-Report-1757162.pdf) reports about `0.12–0.14 MHz` 99%-power bandwidth and `0.08–0.11 MHz` 20 dB bandwidth. It calls `2440 MHz` a short Bridge↔Repeater “Shock Burst” handshake and says main RF transmits sequentially at `2433/2452/2471`. | **Local 2440 MHz, 250 kbps ESB packets decoded; application behavior and relationship to the wide position frames remain incomplete** |
 | Platinum Repeater | Same four-channel narrowband architecture described for the Bridge | FCC ID [`UXUPR`](https://fccid.io/UXUPR). Its public [BOM](https://fccid.io/UXUPR/Parts-List-Tune-Up-Info/RXX9000X2611E01-rev6-Repeater-BOM-1759043.pdf) identifies Nordic `nRF24LU1P-F32Q32-R7`; its [RF report](https://fccid.io/UXUPR/Test-Report/SC1206696C-FCC-Part-15-249-RSS210-Test-Report-1759014.pdf) describes the four channels. | **Chip family established for the Repeater, not the Bridge; contribution to the local wide position frames remains unknown** |
 | Later PowerView/Pebble | A separate community capture reported `2407 MHz`, `1 Mbps`, a 3-byte address, and roughly 25 bytes after the address; an opened Pebble used an nRF51422 | FCC [`UXURC4U3`](https://fccid.io/UXURC4U3) spans a wider `2407–2480 MHz` range; see gpduino’s posts in the [protocol-investigation thread](https://forum.arduino.cc/t/nrf24l01-hack-on-hunter-douglas-shades/676940/17) | **Not compatible; do not import its packet layout, rolling fields, or channel into Platinum** |
 
@@ -117,7 +201,7 @@ signal, and handheld waveform distinct when planning captures or transmitters.
 
 ## RF/PHY specification
 
-### Established parameters
+### Established handheld parameters
 
 | Parameter | Value | Evidence and confidence |
 | --- | --- | --- |
@@ -150,7 +234,7 @@ The shades may listen on only one of the three channels, or may have another rec
 ## Radio configuration
 
 The following is the closest known faithful nRF24 configuration for the
-Platinum handheld. The position frames share its decoded on-air layout, but
+Platinum handheld. The wide five-byte position frames share its decoded on-air layout, but
 their transmitter's registers have not been read:
 
 ```text
@@ -300,7 +384,7 @@ The five bytes printed by Arduino code are only the FIFO payload. A configured n
 - **[LOCAL OBSERVED]** The analyzed remote uses the 88-bit no-PCF layout, MSB-first payload/CRC serialization, positive-frequency logical 1, and `0xaa` preamble in the recorded IQ convention. No whitening or extra coding is needed for its validated frames. Coverage of additional commands and remote revisions remains pending.
 - **[UNKNOWN]** Exact Gaussian pulse shaping/filter bandwidth and the physical cause of RF energy preceding the data frame. The approximate local `±359 kHz` deviation estimate does not establish calibrated transmitter deviation or a complete waveform-generation model.
 - **[LOCAL OBSERVED]/[UNKNOWN]** Cyclic channel order is observed in selected local intervals; per-action starting channel, retune settling, repeat-count distributions, and qualified release-tail timing remain incomplete.
-- **[LOCAL OBSERVED]/[UNKNOWN]** Bridge-command-correlated wide position frames use the decoded `2 Mbps`, 88-bit layout and the room/mask/position fields described above. The narrow FCC-tested signal's modulation, framing, and payload remain unknown, as does the emitting component of the local wide frames. These observations must not be collapsed into one assumed Bridge radio configuration.
+- **[LOCAL OBSERVED]/[UNKNOWN]** Bridge-command-correlated wide position frames use the decoded `2 Mbps`, 88-bit layout and the room/mask/position fields described above. Local 2440 MHz packets use the separately decoded 250 kbps ESB layout. Their complete application behavior and the emitting component of the local wide frames remain unresolved. These observations must not be collapsed into one assumed Bridge radio configuration.
 
 ## Rigorous local capture and validation plan
 
@@ -420,7 +504,7 @@ Promote an item from **[CAPTURE]** or **[INFERENCE]** to locally verified only w
 7. Are arbitrary group masks accepted, or is `0xff` a special broadcast code?
 8. What triggers the locally observed `0x01 00 80` state, and does it specifically indicate no selected group?
 9. Are there legacy commands for stop, favorite/intermediate position, tilt, setup, enrollment, or scene recall?
-10. What modulation, symbol rate, framing, and payload does the narrowband App Bridge signal use?
+10. What application roles, sequencing, acknowledgment behavior, and replay rules govern the decoded 250 kbps, 9- and 12-byte bridge packets, and are there additional packet types?
 11. Does a Platinum repeater translate narrow bridge frames into the wide hand-remote waveform, and can a network request be correlated across both hops?
 12. Are there meaningful hand-remote/wall-switch differences among `UXURC4U`, `UXUWS4U`, and `UXURC4U2`?
 13. What do the position packet's `0x50` and `0x32` phases do at the receiving device, and which repeat/timing parameters are necessary for reliable interoperability?

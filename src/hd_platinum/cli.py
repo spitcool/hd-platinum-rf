@@ -76,6 +76,25 @@ def _parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
+    firmware = subparsers.add_parser(
+        "firmware-inspect", help="inspect or extract user-supplied firmware offline; no device access")
+    firmware_source = firmware.add_mutually_exclusive_group(required=True)
+    firmware_source.add_argument("--apk", help="local Platinum APK containing firmware assets")
+    firmware_source.add_argument("--hex", help="local Intel HEX firmware image")
+    firmware.add_argument("--image", choices=("gateway", "bridge"), default="gateway",
+                          help="APK firmware asset to inspect (default: gateway)")
+    firmware.add_argument("--output-dir", help="extract into a new private directory; omit for inspection only")
+
+    probe = subparsers.add_parser(
+        "firmware-probe", help="run the original firmware keepalive handler in an offline simulator")
+    probe_source = probe.add_mutually_exclusive_group(required=True)
+    probe_source.add_argument("--apk", help="local Platinum APK containing the gateway image")
+    probe_source.add_argument("--hex", help="local gateway Intel HEX image")
+    probe.add_argument("--simulator", required=True, help="path to a separately built uCsim 8051 executable")
+    probe.add_argument("--output-dir", required=True, help="new private directory for execution reports")
+    probe.add_argument("--instruction-limit", type=int, default=100_000)
+    probe.add_argument("--timeout", type=_positive_float, default=30.0)
+
     inventory = subparsers.add_parser(
         "inventory",
         help="send the read-only $dat query and print a redacted inventory",
@@ -207,6 +226,31 @@ def _parser() -> argparse.ArgumentParser:
     serve.add_argument("--tx-gain", type=int, default=35)
     serve.add_argument("--device")
     serve.add_argument("--fpga")
+
+    emulate = subparsers.add_parser("bridge-emulate", help="serve original Platinum TCP protocol and shared HTTP controls")
+    emulate.add_argument("--config", required=True, help="private shade mappings with explicit position/Sync/Jog permissions and HTTP API token")
+    emulate.add_argument("--inventory", required=True, help="saved original bridge inventory, preserving raw records")
+    emulate.add_argument("--backend", choices=("dry-run", "bladerf-bridge"), default="dry-run")
+    emulate.add_argument("--state-dir", default="tmp/bridge-emulator")
+    emulate.add_argument("--initial-sequence", type=int, help="next 16-bit RF sequence, required only for a new live state store")
+    emulate.add_argument("--host", default="127.0.0.1")
+    emulate.add_argument("--port", type=int, default=522)
+    emulate.add_argument("--allowed-client", action="append", help="trusted IPv4/IPv6 client CIDR; required for LAN binding")
+    emulate.add_argument("--http-host", default="127.0.0.1")
+    emulate.add_argument("--http-port", type=int, default=8077)
+    emulate.add_argument("--allowed-host", action="append", help="HTTP Host header allowlist for wildcard HTTP binding")
+    emulate.add_argument("--tx-gain", type=int, default=50)
+    emulate.add_argument("--rx-gain", type=int, default=40)
+    emulate.add_argument("--sync-rf-profile", choices=("narrow", "wide"), default="narrow",
+                         help="Sync recording profile: wide records 2440 and covered native channels at 32 MS/s; position and Jog controls stay narrow")
+    emulate.add_argument("--device")
+    emulate.add_argument("--fpga")
+    emulate.add_argument("--discovery", action="store_true", help="also answer Platinum NetBIOS discovery on UDP 137")
+    emulate.add_argument("--advertise-host", help="this emulator's LAN IPv4 address for discovery")
+    emulate.add_argument("--discovery-host", default="0.0.0.0")
+    emulate.add_argument("--discovery-port", type=int, default=137)
+    emulate.add_argument("--discovery-reuse-port", action="store_true", help="request OS UDP port sharing; successful discovery still needs validation")
+    emulate.add_argument("--protocol-log", help="optional bounded private TCP wire journal for client compatibility work")
     return parser
 
 
@@ -355,6 +399,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = _parser()
     args = parser.parse_args(argv)
     try:
+        if args.command == "firmware-inspect":
+            from .firmware import inspect_firmware
+            return inspect_firmware(args)
+        if args.command == "firmware-probe":
+            from .firmware import FirmwareImage
+            from .firmware_runtime import run_keepalive_probe
+            image = (FirmwareImage.from_apk(args.apk) if args.apk
+                     else FirmwareImage.from_hex(args.hex))
+            report = run_keepalive_probe(
+                image, simulator=args.simulator, output_dir=args.output_dir,
+                instruction_limit=args.instruction_limit, timeout_seconds=args.timeout)
+            print(json.dumps(report, indent=2, sort_keys=True))
+            return 0
         if args.command == "inventory":
             return _run_inventory(args)
         if args.command == "rf-payload":
@@ -371,6 +428,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _run_radio(args)
         if args.command == "bridge-serve":
             return _run_bridge(args)
+        if args.command == "bridge-emulate":
+            from .emulator import run_emulator
+            return run_emulator(args)
     except (ValueError, OSError, RuntimeError, ProtocolError, SnapshotTimeout) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2

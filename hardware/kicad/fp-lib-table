@@ -1,0 +1,9 @@
+(fp_lib_table
+ (lib (name "Capacitor_SMD")(type "KiCad")(uri "${KIPRJMOD}/Capacitor_SMD.pretty")(options "")(descr "Vendored project footprint"))
+ (lib (name "Connector_Coaxial")(type "KiCad")(uri "${KIPRJMOD}/Connector_Coaxial.pretty")(options "")(descr "Vendored project footprint"))
+ (lib (name "HDPlatinum")(type "KiCad")(uri "${KIPRJMOD}/HDPlatinum.pretty")(options "")(descr "Vendored project footprint"))
+ (lib (name "Inductor_SMD")(type "KiCad")(uri "${KIPRJMOD}/Inductor_SMD.pretty")(options "")(descr "Vendored project footprint"))
+ (lib (name "Package_TO_SOT_SMD")(type "KiCad")(uri "${KIPRJMOD}/Package_TO_SOT_SMD.pretty")(options "")(descr "Vendored project footprint"))
+ (lib (name "Resistor_SMD")(type "KiCad")(uri "${KIPRJMOD}/Resistor_SMD.pretty")(options "")(descr "Vendored project footprint"))
+ (lib (name "TestPoint")(type "KiCad")(uri "${KIPRJMOD}/TestPoint.pretty")(options "")(descr "Vendored project footprint"))
+)

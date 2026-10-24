@@ -5,7 +5,7 @@
 
 Status: independently documented, incomplete, and unofficial
 
-Last evidence review: 2026-10-23
+Last evidence review: 2026-10-24
 
 Observed bridge: private-LAN address redacted, firmware banner `2018-HD gateway 2.18a`
 
@@ -17,8 +17,10 @@ All names and the bridge MAC address in the examples below are fictional. The li
 
 Protocol notes on old hardware tend to become folklore. Every claim in this document is therefore qualified by its evidence:
 
-- **LIVE** — observed byte-for-byte on the user's bridge during a non-mutating probe on 2026-10-13.
+- **LIVE** — observed byte-for-byte on the user's original bridge. The initial 2026-10-13 probe was non-mutating; the later 2026-10-24 startup/year-query capture is identified separately below.
 - **CONTROLLED** — observed during bounded, operator-authorized primary-position transactions on 2026-10-23, with before/after inventory and timestamped RF capture. Command receipts do not establish motor position.
+- **APP** — observed from the original Platinum mobile app while connecting to the replacement emulator on 2026-10-24. This establishes client requests, not the original bridge's replies.
+- **EMULATOR** — implemented by this repository's replacement service; live results are identified separately from implemented behavior.
 - **N** — implemented by Aaron Taylor's [`node-hunterdouglas`](https://github.com/exPHAT/node-hunterdouglas), inspected at commit `9bb23b79ef6beb75b26885d70b5e175c8628ba77`.
 - **H** — implemented by Roland Schemers's [`homebridge-hunterdouglas-platinum`](https://github.com/schemers/homebridge-hunterdouglas-platinum), version 2.1.0, inspected at commit `1bdd2cba5ef293da08bb4b6608421a306c64e83c`.
 - **A** — implemented or asserted by James Wilkinson's [`aio-powerrise-api`](https://pypi.org/project/aio-powerrise-api/0.1.0.dev3/), version 0.1.0.dev3.
@@ -37,9 +39,9 @@ source-derived unless stated otherwise.
 - **LIVE:** The server speaks first with `N HunterDouglas Shade Controller`, where this connection used `N = 5`.
 - **LIVE, N, H:** Responses are records delimited by the unusual byte sequence **LF CR** (`0a 0d`, `\n\r`), not conventional CR LF.
 - **LIVE:** Sending exactly the four ASCII bytes `$dat`, with no newline or other terminator, returns a complete database/status snapshot ending in `$upd01-`.
-- **LIVE:** Sending exact, delimiter-free `$dmy` after consuming the banner produced no bridge bytes during an approximately seven-second observation window. A terminal display of `$dmy` was local PTY echo, not a device response.
+- **LIVE, APP:** An early delimiter-free `$dmy` probe was silent for approximately seven seconds. Later original-app captures received `$ack` both while idle and during Sync; the emulator now acknowledges keepalives in both states.
 - **LIVE:** Most response records begin with a decimal connection number and one ASCII space. The initial capture recorded a bare firmware/version line; a later end-to-end client check returned the same text as `$firm03-...`. Treat both the connection prefix and the firmware wrapper as version-dependent.
-- **N, H, G:** Requests can be sent without a line ending. **A** appends CR LF; that dialect was not tested live and should not be treated as the canonical framing.
+- **APP, N, H, G:** Requests can be sent without a line ending. The original app sent a primary-position request without a final hyphen to the emulator. **A** appends CR LF; that dialect was not tested live and should not be treated as the canonical framing.
 - **CONTROLLED, H, A, G:** Send a position command, wait for `$done`, then send `$rls` and observe the action lifecycle. The controlled sessions received `$act01-00-` and a `$cp` update during the position call, before `$done`; command acceptance can precede release, and RF-start semantics are not isolated.
 - **LIVE, N, H, A, G:** There is no TLS. The read-only live session had no authentication exchange; all community implementations also send mutating commands without authentication. Keep port 522 restricted to a trusted LAN.
 
@@ -52,12 +54,164 @@ source-derived unless stated otherwise.
 | TCP port | `522` | LIVE, N, H, A, G |
 | Encryption | None; cleartext | LIVE |
 | Authentication | No challenge or credential step observed; none implemented by the sources | LIVE, N, H, A, G |
-| Optional discovery | NetBIOS Name Service broadcast on UDP `137` | A, G |
+| Optional discovery | NetBIOS Name Service broadcast on UDP `137` | A, G; APP and EMULATOR discovery demonstrated on the local setup |
 | Reported NetBIOS name | `PlatLink-PDBU` in A; `PLATLINK-FDBU` in G | A, G; spelling unresolved |
 
 The port statement above is deliberately narrow: it does not claim that every TCP and UDP port was exhaustively scanned.
 
-For a production integration, prefer a DHCP reservation or explicit address. NetBIOS discovery is source-derived and has not yet been verified against this unit.
+For a production integration, prefer a DHCP reservation or explicit address
+where the client supports it. **APP, EMULATOR:** the optional UDP 137 responder
+answered a LAN broadcast, after which the original mobile app found the emulator
+and updated its bridge address. The responder supports both source-listed name
+variants and advertises the explicitly configured replacement-host IPv4 address.
+This does not establish which name the original bridge advertises or whether
+every app/platform combination discovers it. No manual-IP entry flow has been
+established for the original app.
+
+## Current emulator coverage — 2026-10-24
+
+The `bridge-emulate` service exposes the TCP 522 protocol alongside the shared
+HTTP dispatcher. Its TCP banner and replies use a decimal connection prefix and
+LF CR framing. Active connection IDs are reused within `1`–`9`, preserving the
+two-byte prefix expected by some integrations. A saved original inventory
+seeds the database, including opaque records. Subsequent edits, requested
+positions, and virtual clock fields share one atomic private state file.
+
+| Request | Implemented behavior | Evidence or limitation |
+|---|---|---|
+| `$dat` | Return the imported snapshot, with current requested positions, through `$upd01-` | EMULATOR; exercised over live TCP |
+| `$dmy` | Reply `$ack`, including while this connection's Sync backend is active | EMULATOR; matches later original-app idle and active-Sync captures |
+| `$pssII-04-PPP-` or `$pssII-04-PPP` | Stage an allowed shade's primary position; reply `$act01-00-`, requested `$cp`, then `$done` | EMULATOR; APP used the no-final-hyphen form successfully; `PPP` is `000`–`255`; other features are rejected |
+| `$psrR-4-P-0-` (also padded fields and `00-`) | Immediately submit primary positions for the room's configured, enabled targets; no `$rls` required | Android APK client contract; EMULATOR tested with fake RF; every target must be enabled |
+| `$rls` | Consume the staged batch and submit finite RF commands; broadcast submitted `$cp` records and the room/action-end lifecycle | EMULATOR; RF starts on release in this implementation, while the original bridge's staging/release boundary remains unresolved |
+| `$sdtMM-DD-D-YYYY-` or `$sdtMM-DD-WW-YYYY-` | Validate and persist supplied date and weekday fields; return `$done` | APP requests observed; one- and two-digit weekday accepted; original `$done` response is source-derived from G |
+| `$stmHH-MM-SS-` | Validate and persist supplied time fields; return `$done` | APP request observed; original `$done` response is source-derived from G |
+| `$chksyYYYY-` | Record the supplied year and return `$chksy01-` | APP request observed; LIVE original reply captured for the current calendar year, `2026`; status meaning and other-year behavior are UNKNOWN |
+| `$rscII-` | Start one enabled Sync request; send action-start and feature-01 status, then room/action completion | APP and original RF captured; EMULATOR existing-target resync observed with the original bridge off |
+| `$pssII-12-000-` or omitted final hyphen, then `$rls` | Stage one explicitly enabled Jog; reply action-start, `$cpII-12-001-`, `$done`; submit on release | Original stage/release and RF captured; EMULATOR fake-backend tested, physical Jog unverified; mixed position/Jog batches rejected |
+
+Date/time fields are virtual emulator state. These requests do not set the host
+clock, transmit RF, implement a running schedule engine, or generate solar
+tables. The `$chksy01-` reply matches the captured original response to the
+current-year request. The emulator returns that literal response for every
+accepted year, but other-year behavior has not been verified on the original
+bridge. Neither the meaning of `01` nor a sunrise/sunset interpretation is
+established.
+Malformed or unsupported requests receive emulator error codes whose meanings
+must not be attributed to the original bridge. Scene invocation and additional
+position features are not yet implemented. Database setup is described below;
+new-identity enrollment still requires a physical validation case.
+
+### Room and shade setup from the Android app
+
+Static inspection of the user-supplied Platinum Android 1.1 build 14 APK supplies
+the command grammar and expected response families below. The APK was neither
+installed nor executed. These facts inform an independent implementation;
+the app, decompiled code, and firmware assets remain outside the repository.
+This is client-side evidence, not proof of every original-firmware behavior.
+
+| Request | Meaning | Client expects |
+|---|---|---|
+| `$arTT-L-NAME` | Add room of product type `TT` | `$cr` room record |
+| `$merRR-TT-L-NAME` | Edit room name/type | No explicit reply read |
+| `$rrRR-` | Delete room | Immediate inventory snapshot through `$upd01-` |
+| `$asR-L-NAME` | Add shade to room | `$cs` shade record |
+| `$mesII-RR-L-NAME` | Edit shade name/room | No explicit reply read |
+| `$rsI-` | Delete shade | Immediate inventory snapshot through `$upd01-` |
+
+Legacy short `$psr` requests remain staged when followed by a command boundary;
+the parser waits for a full suffix across TCP fragments before deciding. Android
+`$pss` and `$rsc` requests also accept unpadded numbers. The default idle timeout
+is 300 seconds to accommodate Android's 180-second keepalive interval.
+
+`L` is the name's length in UTF-16 code units, padded to at least two decimal
+digits. Names travel as UTF-8 and may contain hyphens. There is no extra request
+terminator. Android uses two digits for room/type fields in room edits and
+shade edits, but unpadded room IDs in `$as` and shade IDs in `$rs`/`$rsc`.
+The observed iOS app used padded `$as` and `$rsc` fields. The parser accepts
+both and waits for the complete declared name across TCP fragments.
+
+The app limits names to 25 UTF-16 code units and reports eight shades per room.
+The emulator validates the 25 known room product codes, assigns an unused
+two-byte room RF identity and a free room-local shade slot, and persists edits
+before replying. Imported unknown records and product codes are preserved.
+Database creation does not enable RF control; moving, deleting/recreating, or
+changing a target's product/RF binding revokes existing grants. Scene-dependent
+deletion is refused while reference rewriting remains unimplemented. Stable
+database IDs are retained and snapshot definitions are sorted by ID. The APK
+uses those IDs as array indices, so LAN deletion refuses a non-tail entry or
+room cascade that would leave a new hole. Original-bridge compaction behavior
+still needs reference evidence before that restriction can be lifted.
+
+Room creation and shade addition were previously rejected, causing the iOS
+app's connection-loss dialog. The above handlers address those captured
+requests. In a subsequent live app check, room creation persisted and shade
+addition reached the Sync/Jog screen. The new room could not be entered until
+the app was force-closed and reopened. The Android APK establishes no missing
+completion record in the supplied `$cr` reply; the active iOS client's immediate
+refresh issue remains unresolved pending an original-bridge comparison.
+Enrollment of the newly assigned RF identity is a separate physical check.
+
+**APP:** startup traffic included `$sdt10-24-07-2026-`, `$stmHH-MM-SS-` with
+numeric time fields, and `$chksy2026-`. Initially rejecting these requests caused
+a reconnect loop. The date example establishes the app's two-digit weekday
+form; it does not establish the original bridge's acceptance or response.
+Date/time handling was added for compatibility. An initial provisional `$done`
+reply to the year request was superseded by the original response captured
+below. With `$chksy01-`, the app proceeded to `$dat`, received the 759-byte
+snapshot, and displayed the existing rooms and shades. The subsequent app
+position/release transaction reached the RF backend, and the operator confirmed
+the selected shade moved to roughly halfway while the original bridge was off.
+
+The following preserves the app's position value and request framing but uses
+fictional shade and room IDs. Each server line also carries the usual decimal
+connection prefix, represented by `N`:
+
+```text
+C: $chksy2026-
+S: N $chksy01-<LF><CR>
+C: $dat
+S: [snapshot records through $upd01-; private contents omitted]
+C: $pss03-04-126
+S: N $act01-00-<LF><CR>
+S: N $cp03-04-126-<LF><CR>
+S: N $done<LF><CR>
+C: $rls
+S: N $cp03-04-126-<LF><CR>
+S: N $act02-02-<LF><CR>
+S: N $act00-00-<LF><CR>
+```
+
+The position request has no final hyphen or transport delimiter. Its accepted
+value was `126`; the physical observation was approximate halfway, not a
+calibrated position measurement. This verifies discovery, startup, inventory
+display, and one existing shade's primary-position control through the original
+app on this setup. New-identity pairing, room/shade setup, scenes, schedules,
+other feature channels, and Control4 remain separate unverified paths.
+
+**LIVE, original startup/year query — 2026-10-24:** with the app closed, one
+connection received only the banner during the initial observation window.
+Sending the app's same-year request produced this exchange, with the connection
+number represented generically:
+
+```text
+S: N HunterDouglas Shade Controller<LF><CR>
+C: $chksy2026-
+S: N $chksy01-<LF><CR>
+```
+
+No shade, RF-control, or pairing command was sent in this probe. It establishes
+the exact reply for this request and bridge state, not a general meaning for
+the status field or the command's possible state effects.
+
+**EMULATOR, bounded live result:** a TCP position/release transaction drove the
+RF backend while the original bridge was off. The operator confirmed the shade
+closed; independent receive decoding recovered all ten generated packets and
+ten matching response packets, with valid CRCs and no capture gaps or clipping.
+This demonstrates one TCP-to-RF actuation path in addition to the app transaction
+above. It does not establish complete mobile-app, enrollment, or Control4
+compatibility. Returned position records continue to represent requested state
+rather than measured motor feedback.
 
 ## Wire framing
 
@@ -100,6 +254,11 @@ Recommended rule:
 4. Send one logical command at a time and wait for its completion marker before sending an unrelated command.
 
 A trailing field hyphen, such as the final `-` in `$pss01-04-128-`, belongs to the command. It is not a line terminator.
+
+**APP:** the successful emulator control transaction used `$pss03-04-126`
+(fictional shade ID), without that final hyphen or any CR/LF. The emulator
+accepts both position forms. This client observation does not establish the
+original bridge's acceptance of every request-ending variant.
 
 ### Response framing
 
@@ -202,9 +361,9 @@ These commands do not intentionally move a shade or rewrite configuration.
 | Command | Meaning | Expected completion | Evidence and notes |
 |---|---|---|---|
 | `$dat` | Return complete bridge metadata, rooms, shades, positions, scenes, and schedules | `$upd01-` | LIVE, N, H, A. Live form has no trailing hyphen. G uses `$dat-`. |
-| `$dmy` | Dummy/keep-alive | No response observed over ~7 seconds on the live bridge | LIVE. G waits for `$ack`; A's `ping()` also waits for it, but A's periodic keep-alive treats it as fire-and-forget. For this firmware, use fire-and-forget semantics. |
+| `$dmy` | Dummy/keep-alive | `$ack` in later original-app idle and active-Sync captures | APP, EMULATOR. An earlier standalone probe was silent. G and A's `ping()` wait for `$ack`; A's periodic keep-alive treats it as fire-and-forget. |
 
-The live `$dmy` probe was sent only after the banner had been consumed. The PTY echoed the characters typed by the client; raw receive monitoring showed no returned bytes. Do not mistake local terminal echo for a protocol echo or `$ack`.
+The earlier silent `$dmy` probe was sent after consuming the banner. Its PTY echo was local, while the later app-session `$ack` records were received from the original bridge. The condition behind that difference remains unresolved; the emulator follows the positive app-session evidence.
 
 Even `$dat` exposes household names and a hardware address. Treat captures as sensitive and sanitize them before publication.
 
@@ -234,7 +393,10 @@ $pss03-04-128-    raw midpoint under the source clients' percent conversion
 H omits the final hyphen, while A and G include it; N also constructs a
 no-final-hyphen form. **CONTROLLED:** the final-hyphen form above, sent as bare
 ASCII with no CR/LF, returned `$done` for requested values `0`, `128`, and `255`.
-The no-final-hyphen actuation variant was not tested locally.
+**APP, EMULATOR:** a later original-app transaction sent the no-final-hyphen
+form with value `126`; release reached the RF backend and the operator observed
+the selected shade roughly halfway with the original bridge off. The original
+bridge's acceptance of this variant has not been separately probed.
 
 **CONTROLLED, H, A, G:** a position command produces `$done`. The observed order
 was action-start and position-update records, then `$done`; these can be
@@ -306,7 +468,19 @@ A implements the identification jog as:
 $pssII-12-000-
 ```
 
-It expects `$done`. G also identifies feature `12` as “Test.”
+Controlled original-bridge transactions returned `$cpII-12-001-` followed by
+`$done`, then accepted `$rls` and emitted the room/action-end lifecycle. A fresh
+action included `$act01-00-` before the status; a stage during an earlier action
+did not emit a new start marker. G also identifies feature `12` as “Test.”
+
+The captured 250 kbps request uses feature `0x0c`, value `1`, and flags `1`,
+despite the LAN request carrying value `000`. The emulator accepts only that
+observed shade request, requires `jog_enabled`, and stages exactly one Jog.
+Additional Jog or position stages clear the pending batch and return an error;
+release consumes the stage before dispatch, including on failure. No feature-12
+status is persisted as a position, and an RF receipt does not confirm motion.
+The public Jog backend uses the narrow profile and three seconds of diagnostic
+RX; the optional wide Sync profile does not change Jog.
 
 ## Action and command responses
 
@@ -315,13 +489,38 @@ All examples may be preceded by the optional `N ` connection prefix.
 | Record | Meaning | Evidence |
 |---|---|---|
 | `$done` | Command accepted/completed at the bridge-command layer; locally observed after `$pss`; date/time use remains source-derived | CONTROLLED, H, A, G |
-| `$ack` | Acknowledgement, associated with `$dmy` by G and one A code path | A, G; not returned by the live bridge within ~7 seconds |
+| `$chksy01-` | Exact reply to `$chksy2026-` in the 2026-10-24 original-bridge probe; meaning of `01` and other-year responses remain unknown | LIVE |
+| `$ack` | Acknowledgement to `$dmy`; captured after app startup, including during Sync | APP, A, G; an earlier standalone probe was silent |
 | `$errorNN-` | Error with two-digit code | A; meanings of codes `00`–`09` are unknown |
 | `$act01-00-` | Action-start record; locally arrived before the position call's `$done` | CONTROLLED, G |
 | `$act02-RR-...` | Room-action record; local raw records included a leading-NUL variant | CONTROLLED, G |
 | `$act00-00-` | End of the reported action lifecycle; not a motor-position acknowledgement | CONTROLLED, H, A, G |
 
 Action events are not correlated to a request ID. A client that shares the bridge with the legacy app or another controller must be prepared to see action events that it did not initiate.
+
+Two original-bridge Sync references emitted action-start after about 11–28 ms,
+the room-action record after 0.78–0.81 seconds, and action-end after
+16.13–16.22 seconds. `RR` identifies the room; a nonzero value is not an error
+code. These are observed timings, not fixed protocol deadlines.
+
+The emulator sends the Sync room-action record once the checked finite TX
+returns successfully, before waiting for its eighteen-second diagnostic RX.
+Action-end still waits for backend validation and cleanup. Neither event
+confirms enrollment. A later receive failure can therefore follow room-action
+with an error instead of action-end. Notification failure does not resend RF.
+The operator measured a 15-second countdown in the original app. That client
+display interval is distinct from the emulator backend's 18-second receive
+window and is not proof that the shade entered programming mode.
+Sync runs in one owned, non-daemon worker while the connection reader continues
+replying to `$dmy` with `$ack`. Other commands received on that connection during
+Sync receive the emulator's busy error and are discarded, never queued for a
+later RF action. A fragmented command retains that busy status even if its final
+bytes arrive after Sync completes; fragmented keepalives remain acknowledged.
+Socket writes are serialized, and the shared service still
+permits only one RF action at a time. Disconnect or shutdown does not retry or
+abandon a submitted action: the finite backend retains ownership through cleanup,
+and server close waits for it. Position release remains synchronous. Receive-log
+times describe reads by the server, not exact arrival times on the network.
 
 Recommended movement state machine:
 
@@ -472,7 +671,7 @@ commands. See the [position RF observations](rf-protocol.md#position-packets-cor
 
 | Code | Source-derived meaning | Notes |
 |---|---|---|
-| `01` | Sync status/operation | Seen in G's common feature table; command procedure not established |
+| `01` | Sync status/operation | Original-app `$rsc` and RF captured; existing-target emulator resync observed |
 | `04` | Primary rail, bottom-up motion, or traverse | LIVE for inventory; CONTROLLED for bounded single-target requests; N, H, A, G |
 | `07` | Vane/tilt or Luminette “close right” | A, G |
 | `10` | Intermediate preset/stop | A and G disagree on exact semantics/value |
@@ -482,7 +681,11 @@ commands. See the [position RF observations](rf-protocol.md#position-packets-cor
 
 ### Room/product type map
 
-`BB` in `$cr` selects the product family and therefore the valid features. This table is entirely source-derived; only the existence and shape of `BB` were verified live.
+`BB` in `$cr` selects the product family and the app's controls. The 25 codes
+below are confirmed by static inspection of Android 1.1 build 14, including an
+independent DEX constant check. This resolves several community-source gaps;
+it does not validate the physical behavior of untested RF feature channels.
+The executable catalog is in `hd_platinum.products`.
 
 | `BB` | Product family in community sources | Features/caveats |
 |---|---|---|
@@ -495,7 +698,7 @@ commands. See the [position RF observations](rf-protocol.md#position-packets-cor
 | `06` | Luminette Privacy Sheers | `04` traverse, `19` close-left, `07` close-right |
 | `07` | Luminette Modern Draperies full panel | `04` traverse |
 | `08` | Luminette Modern Draperies dual panel | `04` traverse, `19` close-left, `07` close-right |
-| `09` | Pirouette Window Shadings | G lists only `04`; A classifies it as tilt-capable. Unresolved. |
+| `09` | Pirouette Window Shadings | Android selects `04` and `07` |
 | `10` | Silhouette/Nantucket Window Shadings | `04` primary, `07` vane |
 | `11` | Vignette Modern Roman traditional | `04` |
 | `12` | Vignette Modern Roman tiered | `04` |
@@ -505,12 +708,12 @@ commands. See the [position RF observations](rf-protocol.md#position-packets-cor
 | `16` | Alustra Woven Textures Roman | `04` |
 | `17` | Solera Soft Shades | `04` |
 | `18` | Design Studio Roman | `04` |
-| `21` | Silhouette/Nantucket A Deux room-darkening variant | Listed by A; A's own type/tilt classifications are inconsistent, so calibrate |
-| `22` | Provenance Woven Wood standard | Listed by A; feature presumed `04` |
-| `23` | Provenance independently operable liner | Listed by A; multi-feature behavior unresolved |
-| `24` | Provenance vertical drapery | Listed by A; feature presumed `04` |
-| `25` | Provenance top-down/bottom-up | Listed by A as secondary-position capable; likely `04`/`18`, not verified |
-| `30` | Alustra independently operated liner | Listed by A; multi-feature behavior unresolved |
+| `21` | Silhouette/Nantucket A Deux room-darkening variant | Android selects `04` |
+| `22` | Provenance Woven Wood standard | Android selects `04` |
+| `23` | Provenance independently operable liner | Android selects `04` |
+| `24` | Provenance vertical drapery | Android selects `04` |
+| `25` | Provenance top-down/bottom-up | Android selects `04` and `18` |
+| `30` | Alustra independently operated liner | Android selects `04` |
 
 Do not infer capability solely from a product name. Use the room type, observe the official application, and capture known-good commands before enabling secondary or vane features.
 
@@ -526,19 +729,29 @@ A replacement API should expose raw feature channels first. A later Control4 lay
 
 ## Configuration-changing and hazardous commands
 
-The following commands are present in source code but were not used in the live probe. They can change bridge configuration, pairing, schedules, or firmware state. Do not issue them while investigating a fragile bridge unless a recoverable test plan exists.
+The following commands are present in source code but were not used in the
+original non-mutating probe. Later app startup requests are marked below. These
+commands can change bridge configuration, pairing, schedules, or firmware state.
+Historical read-only investigation guidance does not restrict the user's
+subsequently authorized pairing and replacement scope. Establish the grammar
+and preserve recoverable state for the specific authorized experiment; the
+unresolved token list is not sufficient to construct an enrollment transaction.
 
 ### Formats described by sources
 
 | Command | Source-derived purpose | Expected response |
 |---|---|---|
-| `$sdtMM-DD-D-YYYY-` | Set bridge date; weekday `1 = Sunday` through `7 = Saturday` | `$done` in G |
-| `$stmHH-MM-SS-` | Set bridge time | `$done` in G |
+| `$sdtMM-DD-D-YYYY-` | Set bridge date; weekday `1 = Sunday` through `7 = Saturday`; APP sends a two-digit weekday | `$done` in G; original response not locally captured |
+| `$stmHH-MM-SS-` | Set bridge time; APP request observed | `$done` in G; original response not locally captured |
+| `$chksyYYYY-` | Year-valued startup request observed from APP; purpose UNKNOWN | LIVE `$chksy2026-` returned `$chksy01-`; other-year responses and status meaning UNKNOWN |
 | `$mrpSS-RR-FF-PPP-00-` | Set a scene's room position | A; response not established |
 | `$smlSS-II-LL-` | Link/unlink a shade in a scene | A; response not established |
 | `$LEDlPPP-` | Set LED brightness | A token and matching response family; response not established |
 
-G automatically set the date and time when it connected. A new controller should not do this by default; it is an unnecessary state change unless schedule execution depends on it.
+G automatically set the date and time when it connected, and APP startup also
+sent those requests. A new client should make original-bridge clock writes an
+explicit behavior. The emulator accepts them as virtual fields for app
+compatibility, as described above.
 
 ### Tokens with unresolved grammar
 
@@ -578,9 +791,9 @@ Community clients use timeouts between roughly 15 and 30 seconds for command/sna
 - **Prefix rollover:** a connection number of 10 or higher would break fixed-width prefix removal. Use a decimal regex/state machine.
 - **Binary `$ct`:** source parsers assume text; the live record was not safe UTF-8. Store raw bytes.
 - **Names with hyphens:** naive `split('-')` parsing truncates them. Parse fixed headers, then consume the tail unchanged.
-- **Trailing command hyphen:** both forms exist in source. Bare `$dat` and final-hyphen `$pssII-04-PPP-` are locally observed; other endings remain untested.
-- **Leading NUL bytes:** controlled captures retained a room-action record preceded by 30 NUL bytes before its decimal connection prefix. The initial parser preserved it as unknown. Retain raw bytes and handle this separately from ordinary prefix removal.
-- **`$dmy` response:** the live bridge was silent for approximately seven seconds. Some source paths wait for `$ack`; another treats it as fire-and-forget. Do not block the command queue waiting for `$ack` on firmware 2.18a.
+- **Trailing command hyphen:** both position forms exist in source. Bare `$dat` and final-hyphen `$pssII-04-PPP-` are observed against the original bridge. APP used no-final-hyphen `$pssII-04-PPP` successfully against the emulator; other command-ending variants remain unverified.
+- **Leading NUL bytes:** controlled captures retained room-action and action-end records preceded by 30 NUL bytes before their decimal connection prefixes. The parser normalizes leading NUL padding only for the complete `$act00-00-`, `$act01-00-`, and `$act02-RR-` forms, with an optional decimal connection prefix. It preserves every original byte in `BridgeRecord.raw`; other binary or malformed records retain their existing parsing behavior. This lets a padded action-end marker complete the transaction while preserving the evidence.
+- **`$dmy` response:** an early standalone probe was silent for approximately seven seconds. Later original-app proxy captures received `$ack` while idle and during active Sync. The emulator matches those acknowledgements; the cause of the earlier silent probe remains unknown.
 - **`$rls` response:** treat `$act...` as an asynchronous action lifecycle, not as a uniquely correlated reply.
 - **State from handheld RF remotes:** G's author reported that the integration could observe actions from the mobile app but not necessarily from handheld remotes. The legacy shades/bridge may not provide true two-way position feedback for all control paths.
 - **Concurrent clients:** source authors serialize work and community reports describe the bridge as sensitive to simultaneous activity. The exact connection limit is unknown.
@@ -592,8 +805,10 @@ The following should remain explicitly unresolved until captured:
 
 1. Meaning and structure of the 24-byte live `$ct...$` payload.
 2. Meaning of `$set006-`.
-3. Whether `$dmy` ever emits a delayed `$ack`, and whether behavior changes with request terminator or firmware. The current bare-command capture was silent for ~7 seconds.
-4. Which request endings are accepted beyond observed bare `$dat` and final-hyphen feature-`04` `$pss`.
+3. Why the early standalone `$dmy` probe was silent while later original-app idle and active-Sync sessions received `$ack`; firmware, session startup, and terminator effects are not isolated.
+4. Which request endings the original bridge accepts beyond observed bare
+   `$dat` and final-hyphen feature-`04` `$pss`. The app's no-final-hyphen position
+   form is now observed working against the emulator.
 5. The distinct RF effects of `$pss` and `$rls`: action-start and position-update records arrived before `$done`, but the local calls did not deliberately separate staging and release long enough to assign RF-start semantics.
 6. Error-code meanings for `$errorNN-`.
 7. Scene and schedule record layouts from this specific bridge configuration.
@@ -601,6 +816,10 @@ The following should remain explicitly unresolved until captured:
 9. Whether an RF handheld action causes an unsolicited `$cp` or any LAN event.
 10. Connection-number allocation, wraparound, idle timeout, and simultaneous-client limit.
 11. The actual NetBIOS name advertised by this unit.
+12. The meaning of `01` in the captured `$chksy01-` reply, other-year responses,
+    and possible state effects. Matching this reply let the app complete startup
+    and control one existing shade; broader setup and enrollment compatibility
+    remain unresolved.
 
 Safe capture order:
 
@@ -608,9 +827,14 @@ Safe capture order:
 2. Repeat exact bare `$dat`; compare order and opaque fields across connections.
 3. Test `$dmy` on an otherwise idle connection and wait without sending follow-up data.
 4. Capture traffic from the legacy mobile app while it performs a read-only refresh.
-5. Only with explicit approval, choose one known shade and one reversible movement, capture both LAN and 2.4 GHz RF, and immediately reconcile with `$dat`.
+5. Within the user's authorized target and movement scope, choose one known
+   shade and one reversible movement, capture both LAN and 2.4 GHz RF, and
+   reconcile with `$dat` and an independent physical observation.
 
-Avoid room/shade database commands and the bootloader token during discovery.
+This order describes initial discovery. It does not prohibit subsequently
+authorized pairing or configuration captures; those require a specific known
+target and recorded before/after state. The bootloader token is unrelated to
+normal discovery or enrollment.
 
 ## Using the LAN protocol as an RF oracle
 
@@ -640,7 +864,7 @@ Vary one field at a time and repeat each action. Record RF frequency, channel/ba
 - Port 522 is a cleartext, apparently unauthenticated control surface. Firewall it from untrusted VLANs and never expose it to the internet.
 - Use a single designated research host to reduce accidental concurrent access.
 - Save raw captures, but publish only sanitized extracts. `$dat` discloses names and the bridge MAC.
-- Treat the bridge as irreplaceable: avoid bootloader, pairing, delete, rename, schedule, date/time, and LED writes until there is a recovery plan.
+- Preserve the original bridge's state. For authorized pairing or configuration work, record the affected target and before/after state and plan recovery; initial read-only guidance is not a blanket prohibition on that work. Bootloader entry remains outside ordinary pairing and control.
 - A passive packet capture or a read-only `$dat` is preferred whenever it can answer the question.
 
 ## Credits, provenance, and licenses

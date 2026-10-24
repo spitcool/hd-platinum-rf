@@ -1,0 +1,20 @@
+Designator,Quantity,Value,Manufacturer,MPN,Footprint,Side,Supplier reference,Assembly,Notes
+J1,1,M5-Bus A089,M5Stack,A089,HDPlatinum:M5Bus_A089_2x15,Bottom,,Manual through-hole,Housing on bottom; male tails toward CoreS3 SE. 1 piece from A089 10-pack.
+U1,1,RF2401F20,NiceRF,RF2401F20,HDPlatinum:NiceRF_RF2401F20,Bottom,LCSC C5126685,SMT,No RF2401PRO/Si24R1 substitutions. Shield outward. RF_PWR <=2; start at0.
+J2,1,U.FL,Hirose,U.FL-R-SMT-1(10),Connector_Coaxial:U.FL_Hirose_U.FL-R-SMT-1_Vertical,Bottom,,SMT,
+U2,1,TLV75533PDBVR,Texas Instruments,TLV75533PDBVR,Package_TO_SOT_SMD:SOT-23-5,Bottom,,SMT,
+FB1,1,600R@100MHz,Murata,BLM18AG601SN1D,Inductor_SMD:L_0603_1608Metric,Bottom,,SMT,
+C1,1,10uF 25V X5R,Samsung,CL21A106KAYNNNE,Capacitor_SMD:C_0805_2012Metric,Bottom,LCSC C15850,SMT,
+C2,1,100nF 50V X7R,Samsung,CL10B104KB8NNNC,Capacitor_SMD:C_0603_1608Metric,Bottom,LCSC C1591,SMT,
+C3,1,10uF 25V X5R,Samsung,CL21A106KAYNNNE,Capacitor_SMD:C_0805_2012Metric,Bottom,LCSC C15850,SMT,
+C4,1,47uF 10V X5R,Samsung,CL31A476MPHNNNE,Capacitor_SMD:C_1206_3216Metric,Bottom,LCSC C96123,SMT,
+C5,1,100nF 50V X7R,Samsung,CL10B104KB8NNNC,Capacitor_SMD:C_0603_1608Metric,Bottom,LCSC C1591,SMT,
+R1,1,33R 1%,Yageo,RC0603FR-0733RL,Resistor_SMD:R_0603_1608Metric,Bottom,,SMT,
+R2,1,33R 1%,Yageo,RC0603FR-0733RL,Resistor_SMD:R_0603_1608Metric,Bottom,,SMT,
+R3,1,33R 1%,Yageo,RC0603FR-0733RL,Resistor_SMD:R_0603_1608Metric,Bottom,,SMT,
+R4,1,33R 1%,Yageo,RC0603FR-0733RL,Resistor_SMD:R_0603_1608Metric,Bottom,,SMT,
+R5,1,33R 1%,Yageo,RC0603FR-0733RL,Resistor_SMD:R_0603_1608Metric,Bottom,,SMT,
+R6,1,100k 1%,Yageo,RC0603FR-07100KL,Resistor_SMD:R_0603_1608Metric,Bottom,,SMT,
+R7,1,100k 1%,Yageo,RC0603FR-07100KL,Resistor_SMD:R_0603_1608Metric,Bottom,,SMT,
+R8,1,100k 1%,Yageo,RC0603FR-07100KL,Resistor_SMD:R_0603_1608Metric,Bottom,,SMT,
+R9,1,100k 1%,Yageo,RC0603FR-07100KL,Resistor_SMD:R_0603_1608Metric,Bottom,,SMT,
