@@ -4,8 +4,10 @@
 # Protocol conformance before shade testing
 
 The selected live route is **2440 MHz bridge packets to a Platinum repeater**.
-The repeater supplies the native shade transmissions. Original firmware
-execution and independently decoded recordings provide separate references.
+Original firmware execution and independently decoded recordings provide
+separate references. Later matching 2440 MHz traffic is consistent with
+forwarding; it does not by itself identify the emitter or establish native
+shade output.
 They establish transmitter behavior; they do not expose the shade receiver's
 learning policy or prove that a particular shade accepts a request.
 
@@ -75,7 +77,7 @@ measured difference before the data-bearing frame, without evidence that it
 invalidates reception. The exercised flat lead and ±160 kHz synthesis remain.
 Relative carrier offsets from these recordings are not an absolute calibration.
 
-## Route limits and next physical check
+## Controlled physical checks and route limits
 
 The experimental direct 2 Mbps hardware backends currently send an entire train
 on one channel before retuning. They do not reproduce the original per-packet
@@ -83,19 +85,16 @@ hopping scheduler, and do not provide dedicated native Sync/Jog plans. Keep
 their shade interoperability status unqualified; passing native payload checks
 does not validate those backends.
 
-The next controlled check uses one already paired shade and one finite Jog via
-the corrected 2440 MHz backend, with the original bridge off and a known
-repeater on. Verify the recorded transmitted packets and obtain an operator's
-movement observation. This separates ordinary control from enrollment before
-another attempt to assign a new shade identity. New-identity enrollment remains
-unresolved, including on the original bridge.
+The controlled checks used one already paired shade and finite Jog commands,
+with the original bridge off and one repeater on. New-identity enrollment
+remains unresolved, including on the original bridge.
 
-The first controlled existing-binding Jog after this audit produced no observed
+The first existing-binding Jog after this audit produced no observed
 movement. Its recording recovered all ten transmitted packets exactly and a
-complete ten-packet forwarded group; the command body matched a successful
-original-bridge Jog. The 3-second 2440 MHz recording was continuous and unclipped.
-This narrows the next observation to the native output; it does not establish
-that the repeater emitted the expected shade-facing packets.
+complete ten-packet later group consistent with forwarding; the command body
+matched a successful original-bridge Jog. The 3-second 2440 MHz recording was
+continuous and unclipped.
+That recording does not establish native output.
 
 For that diagnostic, the Python backend now accepts opt-in
 `profile="wide", rx_center_hz=2_461_500_000` with Jog. Both directions use
@@ -105,3 +104,48 @@ with at least 2.25 seconds required after TX. This nominal passband includes
 The default narrow profile and the existing 2446 MHz wide Sync profile remain
 unchanged. This receive selection is a diagnostic API option, not a new direct
 shade-transmission mode.
+
+Two subsequent wide recordings also accompanied no observed movement. Neither
+recovered expected native packets on its covered channels. The 2446 MHz
+recording recovered all ten transmitted 2440 MHz packets exactly, but no later
+decoded group. Intermittent interference limits that negative result: failure
+to decode is not proof of no emission, and neither wide profile covers all
+three native channels. All three recordings were continuous and unclipped.
+Matched filtering and nominal receive-gain correction put clean local TX
+packet power within 0.04 dB across the narrow and wide modes. This argues
+against a large interpolation-related power loss at the monitoring antenna;
+it is not a radiated-power calibration or a measurement at the repeater.
+
+An original-bridge baseline then failed to produce observed movement; the
+operator-requested repeat succeeded. Both recordings contain the same target,
+mask and native Jog bodies, the expected held/alternate/tail sequence, and
+matching 2440 MHz source/later groups. The successful recording yielded fewer
+decoded native frames at the SDR. No recovered payload or timing difference
+explains the different physical outcomes. These data do not identify the native
+emitter.
+The successful repeat confirms the shade still accepts its existing binding;
+it does not validate the new identity or the SDR Jog path.
+
+A separate bounded execution of the original native initializer and phase
+selection rules found no mandatory cold-start prelude. Initialization clears
+the active native timer and starts an ordinary command in held phase 2. The
+short phase-1 prelude applies when a previous native timer is active. This
+does not establish the receiver's interpretation of that phase and is not a
+reason to prepend it to every synthesized command.
+
+A bounded composition of the original scheduler, payload builder and channel
+selector also checked 720 pulse triggers, stopping at radio-access boundaries.
+The reviewed path maintains channel rotation across payload changes. Steady
+Jog refreshes use 100 main packets and 20 alternate packets, but decrementing
+the refresh counter before the first pulse gives an initial run of 99 or 19,
+depending on the supplied alternation state. The APK reset path and reviewed
+main initializer do not establish the physical power-on channel/alternation
+state. The independent phase-timer epoch also prevents deriving an exact
+whole-command packet count from this fixture. A planner must expose these
+initial-state and timing assumptions rather than claim one proven startup
+schedule.
+
+The direct transmitter's per-packet scheduler remains a concrete implementation
+gap. Reproducing and independently checking that schedule is the next software
+step before qualifying a direct native Jog. Repeating the same narrow command
+alone cannot resolve the native-output uncertainty above.
