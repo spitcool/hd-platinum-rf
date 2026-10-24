@@ -23,6 +23,7 @@ from .firmware_runtime import (
     GATEWAY_CODE_SHA256, FirmwareRuntimeError, _Console, _file_hash, _write_private,
 )
 from .rf import build_remote_payload
+from .rf_native_jog import build_native_jog_payloads
 from .rf_positions import build_position_payloads
 
 
@@ -50,15 +51,17 @@ def _payload_cases():
                        "alternating": False, "previous_alternate": 0,
                        "expected": identity + bytes((0x20, mask, code)),
                        "reference": "verified native Sync body; duration checked separately"}
-            for name, phase, previous, code, value in (
-                    ("jog_main", 2, 1, 0x6A, 1),
-                    ("jog_alternate", 2, 0, 0x20, 0x6A),
-                    ("jog_tail", 3, 1, 0x32, 1)):
+            main, alternate, tail = build_native_jog_payloads(identity, mask)
+            for name, phase, previous, expected in (
+                    ("jog_main", 2, 1, main),
+                    ("jog_alternate", 2, 0, alternate),
+                    ("jog_tail", 3, 1, tail),
+                    ("jog_tail", 3, 0, tail)):
                 yield {"operation": name, "identity": identity, "mask": mask,
                        "feature": 12, "value": 1, "phase": phase,
                        "alternating": True, "previous_alternate": previous,
-                       "expected": identity + bytes((code, mask, value)),
-                       "reference": "verified native Jog body; no public direct-Jog encoder"}
+                       "expected": expected,
+                       "reference": "build_native_jog_payloads; waveform timing checked separately"}
 
 
 def run_native_probe(image: FirmwareImage, *, simulator, output_dir,

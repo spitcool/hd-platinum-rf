@@ -166,7 +166,7 @@ class NativeFirmwareProbeTests(unittest.TestCase):
     def test_matrix_has_private_artifacts_boundaries_and_honest_scope(self):
         report = self.run_fake()
         self.assertEqual(report["status"], "passed")
-        self.assertEqual(len(report["payloads"]), 84)
+        self.assertEqual(len(report["payloads"]), 88)
         positions = [r for r in report["payloads"] if r["operation"] == "position"]
         self.assertEqual({r["value"] for r in positions}, {0, 1, 127, 128, 254, 255})
         self.assertEqual({r["mask"] for r in positions}, {1, 128})
@@ -197,6 +197,17 @@ class NativeFirmwareProbeTests(unittest.TestCase):
                 self.run_fake()
         report = json.loads(caught.exception.report_path.read_text())
         self.assertFalse(report["payloads"][0]["checks"]["payload_exact"])
+        self.assertEqual(report["status"], "failed")
+        self.assertTrue(report["child_reaped"])
+
+    def test_native_jog_encoder_regression_fails_independent_contract(self):
+        with patch.object(native, "build_native_jog_payloads", return_value=(b"wrong",) * 3):
+            with self.assertRaises(native.FirmwareRuntimeError) as caught:
+                self.run_fake()
+        report = json.loads(caught.exception.report_path.read_text())
+        jog = [row for row in report["payloads"] if row["operation"] == "jog_main"]
+        self.assertEqual(len(jog), 1)
+        self.assertFalse(jog[0]["checks"]["payload_exact"])
         self.assertEqual(report["status"], "failed")
         self.assertTrue(report["child_reaped"])
 

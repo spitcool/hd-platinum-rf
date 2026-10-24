@@ -145,7 +145,49 @@ whole-command packet count from this fixture. A planner must expose these
 initial-state and timing assumptions rather than claim one proven startup
 schedule.
 
-The direct transmitter's per-packet scheduler remains a concrete implementation
-gap. Reproducing and independently checking that schedule is the next software
-step before qualifying a direct native Jog. Repeating the same narrow command
-alone cannot resolve the native-output uncertainty above.
+## Offline native Jog plan
+
+`hd_platinum.rf_native_jog` now supplies a separate finite packet-event planner
+and chunked IQ writer. It preserves per-packet channel rotation across main,
+alternate and tail body changes, including the shorter initial refresh run.
+The original-firmware payload probe compares this module's bodies directly,
+including both alternation states during the tail. The live radio backends
+remain unchanged; this module neither opens hardware nor grants control.
+
+Initial state, phase packet counts and the nominal timing grid are mandatory
+arguments. For example, this creates a fictional offline plan:
+
+```python
+from hd_platinum.rf_native_jog import build_native_jog_plan
+
+plan = build_native_jog_plan(
+    bytes.fromhex("1234"), 1,
+    prior_channel=71, prior_alternate=0,
+    held_frame_count=7500, tail_frame_count=1500,
+    slot_us=200.5,
+)
+print(plan.as_dict())
+```
+
+These chosen counts yield 1.8045 seconds; they are diagnostic assumptions, not
+measured universal counts. Output uses 48 MS/s centered at 2452 MHz, with one
+packet at a time on the three channels. The complete waveform is capped at two
+seconds. Gaussian shaping, deviation and envelope remain provisional. The
+optional writer creates a new mode-0600 file and refuses an existing path;
+generated IQ contains the supplied identity even when metadata redacts it.
+
+Independent decoding recovered all 297 packets from two short fictional
+written-IQ fixtures, with valid CRCs on all three channel offsets. The checks
+also covered both initial alternation states, channel continuity across a
+held/tail boundary, zero-filled gaps, amplitude bounds, and rejecting silent or
+wrong-channel inputs. These are digital-file results, not RF reception results.
+
+Digital frame decoding does not qualify the wide radio path. TX analog bandwidth
+must pass both outer channels, and actual TX/RX rates must remain as requested.
+The reference bench previously found that requesting 24 MS/s RX changed a
+48 MS/s TX configuration to 24 MS/s, consistent with
+[Nuand's shared-rate explanation](https://nuand.com/forums/viewtopic.php?t=12937).
+Its supported combined streaming limit
+also excludes simultaneous 48 MS/s TX and RX. Those checks must not be bypassed
+to obtain a nominally complete capture. Independent RF verification remains
+necessary before qualifying this plan as a live direct-Jog backend.
