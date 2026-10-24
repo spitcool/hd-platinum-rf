@@ -89,3 +89,19 @@ repeater on. Verify the recorded transmitted packets and obtain an operator's
 movement observation. This separates ordinary control from enrollment before
 another attempt to assign a new shade identity. New-identity enrollment remains
 unresolved, including on the original bridge.
+
+The first controlled existing-binding Jog after this audit produced no observed
+movement. Its recording recovered all ten transmitted packets exactly and a
+complete ten-packet forwarded group; the command body matched a successful
+original-bridge Jog. The 3-second 2440 MHz recording was continuous and unclipped.
+This narrows the next observation to the native output; it does not establish
+that the repeater emitted the expected shade-facing packets.
+
+For that diagnostic, the Python backend now accepts opt-in
+`profile="wide", rx_center_hz=2_461_500_000` with Jog. Both directions use
+32 MS/s; TX remains the same finite 2440 MHz command. RX records for 3 seconds,
+with at least 2.25 seconds required after TX. This nominal passband includes
+2452/2471 MHz and excludes 2440/2433 MHz. Receipts record that coverage explicitly.
+The default narrow profile and the existing 2446 MHz wide Sync profile remain
+unchanged. This receive selection is a diagnostic API option, not a new direct
+shade-transmission mode.

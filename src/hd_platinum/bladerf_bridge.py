@@ -31,9 +31,11 @@ from .rf_bridge import (BANDWIDTH_HZ, CENTER_HZ, DURATION_SECONDS, SAMPLE_COUNT,
                         write_bridge_waveform)
 
 WIDE_RX_CENTER_HZ = 2_446_000_000
+WIDE_NATIVE_RX_CENTER_HZ = 2_461_500_000
 WIDE_RX_BANDWIDTH_HZ = 32_000_000
 WIDE_TIMESTAMP_UNCERTAINTY_SECONDS = .025
 WIDE_SYNC_POST_TX_SECONDS = 16.0
+WIDE_JOG_POST_TX_SECONDS = 2.25
 
 
 def _now():
@@ -301,8 +303,10 @@ class BladeRFBridgeBackend:
     directories are retained, including failed runs. No payload enters the
     public receipt. State locking also serializes sessions across processes.
     The default ``narrow`` profile records the 2440 MHz link at 8 MS/s.
-    Opt-in ``wide`` uses 32 MS/s in both directions and records 2440 MHz plus
-    the covered 2433/2452 MHz native channels; 2471 MHz is outside the capture.
+    Opt-in ``wide`` uses 32 MS/s in both directions. Its default RX center of
+    2446 MHz covers the 2440 MHz link and native 2433/2452 MHz channels. The
+    explicit 2461.5 MHz center instead covers native 2452/2471 MHz, excluding
+    2440/2433 MHz. These are nominal passbands, not a reception guarantee.
     """
 
     name = "bladerf-bridge"
@@ -311,16 +315,30 @@ class BladeRFBridgeBackend:
 
     def __init__(self, state_dir, *, initial_sequence=None, gain_db=50, rx_gain_db=40,
                  device=None, fpga=None, radio_factory=None, keep_artifacts=4,
-                 profile="narrow"):
+                 profile="narrow", rx_center_hz=None):
         if profile not in ("narrow", "wide"):
             raise ValueError("profile must be narrow or wide")
         self.profile = profile
         rate = WIDE_SAMPLE_RATE_HZ if profile == "wide" else SAMPLE_RATE_HZ
+        if rx_center_hz is None:
+            rx_center_hz = WIDE_RX_CENTER_HZ if profile == "wide" else CENTER_HZ
+        allowed_centers = ((WIDE_RX_CENTER_HZ, WIDE_NATIVE_RX_CENTER_HZ)
+                           if profile == "wide" else (CENTER_HZ,))
+        if type(rx_center_hz) is not int or rx_center_hz not in allowed_centers:
+            raise ValueError("rx_center_hz must be an allowed center for the selected profile")
         # Reuse the radio configuration's strict range/type validation.
         self.tx_config = RadioConfig(rate, CENTER_HZ, BANDWIDTH_HZ, gain_db)
-        self.rx_config = RadioConfig(rate,
-            WIDE_RX_CENTER_HZ if profile == "wide" else CENTER_HZ,
+        self.rx_config = RadioConfig(rate, rx_center_hz,
             WIDE_RX_BANDWIDTH_HZ if profile == "wide" else BANDWIDTH_HZ, rx_gain_db)
+        known_channels = (2_433_000_000, CENTER_HZ, 2_452_000_000, 2_471_000_000)
+        lower = rx_center_hz - self.rx_config.bandwidth_hz // 2
+        upper = rx_center_hz + self.rx_config.bandwidth_hz // 2
+        self.rx_observation = {
+            "nominal_band_hz": [lower, upper],
+            "covered_known_channels_hz": [value for value in known_channels if lower < value < upper],
+            "excluded_known_channels_hz": [value for value in known_channels if not lower < value < upper],
+            "note": "Nominal configured passband; does not guarantee packet reception",
+        }
         self.sample_count = SAMPLE_COUNT * (rate // SAMPLE_RATE_HZ)
         if type(keep_artifacts) is not int or not 1 <= keep_artifacts <= 32:
             raise ValueError("keep_artifacts must be within 1..32")
@@ -353,12 +371,11 @@ class BladeRFBridgeBackend:
         started, timing_origin = time.monotonic(), _now()
         syncing = isinstance(command, SyncCommand)
         jogging = isinstance(command, JogCommand)
-        if jogging and self.profile != "narrow":
-            raise ValueError("Jog requires the narrow RF profile")
         receive_duration = (self.sync_receive_duration_seconds if syncing
                             else self.receive_duration_seconds)
         wide = self.profile == "wide"
-        minimum_post_tx = WIDE_SYNC_POST_TX_SECONDS if wide and syncing else 0
+        minimum_post_tx = (WIDE_SYNC_POST_TX_SECONDS if wide and syncing
+                           else WIDE_JOG_POST_TX_SECONDS if wide and jogging else 0)
         build_bridge_plan(command, 0)  # Invalid requests cannot consume state.
         with self.store.transaction() as sequence:
             self._prune(self.keep_artifacts - 1)
@@ -370,7 +387,9 @@ class BladeRFBridgeBackend:
                 "rf_profile": self.profile,
                 "tx_configuration": vars(self.tx_config),
                 "rx_configuration": vars(self.rx_config),
+                "capture_coverage": self.rx_observation,
                 "receive_duration_seconds": receive_duration,
+                "minimum_post_tx_seconds": minimum_post_tx,
                 "failure": None, "first_rx_block": None, "active_readback": None,
                 "iq_submission_calls_attempted": 0, "iq_submission_calls_succeeded": 0,
                 "bias_tees_off_verified": False, "radio_session_closed": False,

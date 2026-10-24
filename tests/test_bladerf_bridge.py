@@ -268,6 +268,14 @@ class BridgeBackendTests(unittest.TestCase):
             self.backend(FakeLibrary(), profile="unrecognized")
         self.assertFalse((Path(self.directory.name) / "sequence.json").exists())
 
+    def test_receive_center_is_restricted_before_sequence_state_creation(self):
+        for profile, center in (("narrow", 2_461_500_000), ("narrow", 2_446_000_000),
+                                ("wide", 2_440_000_000), ("wide", 2_461_000_000),
+                                ("wide", 2_461_500_000.0), ("wide", True), ("wide", "2461500000")):
+            with self.subTest(profile=profile, center=center), self.assertRaisesRegex(ValueError, "rx_center_hz"):
+                self.backend(FakeLibrary(), profile=profile, rx_center_hz=center)
+        self.assertFalse((Path(self.directory.name) / "sequence.json").exists())
+
     def test_wide_active_clock_rate_status_and_window_failures_refuse_iq(self):
         class WrongEpoch(FakeLibrary):
             def bladerf_get_timestamp(self, device, direction, value):
@@ -405,18 +413,93 @@ class BridgeBackendTests(unittest.TestCase):
         self.assertTrue(receipt["bias_tees_off_verified"])
         self.assertEqual(self.backend(FakeLibrary(), initial=None)(self.command)["sequence"], 101)
 
-    def test_jog_scope_and_wide_profile_refuse_before_sequence_reservation(self):
-        target = ShadeConfig("Test shade", 2, b"\x12\x34", 8, jog_enabled=True)
+    def test_disabled_jog_refuses_before_sequence_reservation(self):
         library = FakeLibrary()
         backend = self.backend(library, profile="wide")
-        with self.assertRaisesRegex(ValueError, "narrow"):
-            backend(JogCommand(3, target, "wide-jog"))
+        disabled = ShadeConfig("Test shade", 2, b"\x12\x34", 8)
+        with self.assertRaises(ValueError):
+            backend(JogCommand(3, disabled, "disabled-jog"))
         self.assertEqual(library.tx_calls, 0)
         self.assertEqual(SequenceStore(self.directory.name).reserve(), 100)
         narrow = self.backend(library, initial=None)
-        disabled = ShadeConfig("Test shade", 2, b"\x12\x34", 8)
         with self.assertRaises(ValueError):
             narrow(JogCommand(3, disabled, "disabled-jog"))
+        self.assertEqual(SequenceStore(self.directory.name).reserve(), 101)
+
+    def test_wide_jog_records_both_upper_native_channels_with_unchanged_finite_tx(self):
+        target = ShadeConfig("Test shade", 2, b"\x12\x34", 8, jog_enabled=True)
+        library, notifications = FakeLibrary(first_status=0x30000), []
+        backend = self.backend(library, profile="wide", rx_center_hz=2_461_500_000, rx_gain_db=30)
+        result = backend.submit(JogCommand(3, target, "wide-jog"),
+                                on_transmit_submitted=lambda: notifications.append("submitted"))
+        self.assertEqual((result["frames_sent"], result["duration_seconds"], result["sequence"]),
+                         (10, .112134, 100))
+        self.assertEqual(library.rates, {RX1: 32_000_000, TX1: 32_000_000})
+        self.assertEqual(library.frequencies, {RX1: 2_461_500_000, TX1: 2_440_000_000})
+        self.assertEqual(library.gains, {RX1: 30, TX1: 50})
+        self.assertEqual((library.tx_calls, library.tx_samples, library.rx_count),
+                         (14, 3_588_288, 96_000_000))
+        self.assertEqual(notifications, ["submitted"])
+        run = next((Path(self.directory.name) / "runs").iterdir())
+        receipt = json.loads((run / "receipt.json").read_text())
+        self.assertEqual((receipt["operation"], receipt["receive_duration_seconds"],
+                          receipt["minimum_post_tx_seconds"]), ("jog", 3.0, 2.25))
+        self.assertEqual(receipt["capture_coverage"]["covered_known_channels_hz"],
+                         [2_452_000_000, 2_471_000_000])
+        self.assertEqual(receipt["capture_coverage"]["excluded_known_channels_hz"],
+                         [2_433_000_000, 2_440_000_000])
+        self.assertEqual(receipt["wide_receive_window"]["required_remaining_seconds"], 2.75)
+        self.assertGreaterEqual(receipt["wide_post_tx_capture_seconds"], 2.25)
+        self.assertTrue(receipt["active_rx_readback"]["passed"])
+        self.assertTrue(receipt["radio_session_closed"] and receipt["bias_tees_off_verified"])
+        self.assertFalse(receipt["rx_worker_alive"] or library.enabled)
+        plan = json.loads((run / "plan.json").read_text())
+        self.assertEqual((plan["sample_count"], plan["source_sample_rate_hz"]), (3_588_288, 8_000_000))
+        self.assertEqual(bytes.fromhex(plan["frames"][0]["payload_hex"])[6:11], bytes((12, 8, 1, 0, 1)))
+        self.assertEqual(SequenceStore(self.directory.name).reserve(), 101)
+
+    def test_wide_jog_window_or_changed_receive_center_refuses_before_iq(self):
+        class DelayedPreparation(FakeLibrary):
+            def bladerf_get_timestamp(self, device, direction, value):
+                _set(value, C.c_uint64, self.clock + 12_800_000)
+                return 0
+        class ChangedCenter(FakeLibrary):
+            def bladerf_get_frequency(self, device, channel, value):
+                _set(value, C.c_uint64, 2_446_000_000 if channel == RX1 else self.frequencies[channel])
+                return 0
+        for library, error in ((DelayedPreparation(), "wide RX window"),
+                               (ChangedCenter(), "healthy first block")):
+            with self.subTest(library=type(library).__name__), tempfile.TemporaryDirectory() as directory:
+                backend = BladeRFBridgeBackend(directory, initial_sequence=100, profile="wide",
+                    rx_center_hz=2_461_500_000,
+                    radio_factory=lambda **kwargs: BridgeRadio(library=library, **kwargs))
+                target = ShadeConfig("Test shade", 2, b"\x12\x34", 8, jog_enabled=True)
+                with self.assertRaisesRegex(RadioError, error):
+                    backend(JogCommand(3, target, "refused-wide-jog"))
+                self.assertEqual(library.tx_calls, 0)
+                self.assertTrue(library.closed)
+                self.assertFalse(library.enabled)
+                self.assertEqual(SequenceStore(directory).reserve(), 101)
+
+    def test_wide_jog_late_schedule_fails_coverage_without_resubmission(self):
+        class LateSchedule(FakeLibrary):
+            tx_queries = 0
+            def bladerf_get_timestamp(self, device, direction, value):
+                if direction:
+                    self.tx_queries += 1
+                    if self.tx_queries == 2:
+                        self.clock += 16_000_000
+                return super().bladerf_get_timestamp(device, direction, value)
+        library, notifications = LateSchedule(), []
+        target = ShadeConfig("Test shade", 2, b"\x12\x34", 8, jog_enabled=True)
+        backend = self.backend(library, profile="wide", rx_center_hz=2_461_500_000)
+        with self.assertRaisesRegex(RadioError, "native response window"):
+            backend.submit(JogCommand(3, target, "late-wide-jog"),
+                           on_transmit_submitted=lambda: notifications.append("submitted"))
+        self.assertEqual(notifications, ["submitted"])
+        self.assertEqual(library.tx_calls, 14)
+        self.assertTrue(library.closed)
+        self.assertFalse(library.enabled)
         self.assertEqual(SequenceStore(self.directory.name).reserve(), 101)
 
     def test_jog_failed_transmission_burns_sequence_without_retry_and_closes(self):
