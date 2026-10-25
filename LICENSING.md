@@ -15,6 +15,15 @@ licensed under the GNU Affero General Public License, version 3 or later
 (`AGPL-3.0-or-later`). The canonical terms are in [LICENSE](LICENSE) and
 [LICENSES/AGPL-3.0-or-later.txt](LICENSES/AGPL-3.0-or-later.txt).
 
+The separately scoped libbladeRF patch and offline regression component is an
+exception: `tools/libbladerf_sc8/sc8-metadata.patch`, `check.py`, `probe.c`, and
+`tests/test_libbladerf_sc8.py` use `LGPL-2.1-or-later`. The patch preserves
+Nuand's copyright, and generated upstream source copies retain their original
+notices. The unchanged upstream license text is in
+[tools/libbladerf_sc8/LICENSE](tools/libbladerf_sc8/LICENSE); provenance and
+modifications are recorded in that component's README and `CREDITS.md`.
+Its README follows the project documentation license below.
+
 If you modify the software and let users interact with it over a network, read
 the AGPL's source-offer requirements, including section 13, before deployment.
 

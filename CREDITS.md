@@ -11,7 +11,8 @@ This project depends on years of community investigation. The goal of this file 
 - Wire tokens, measured values, register settings, packet-field facts, and interoperability behavior are restated with attribution.
 - The unlicensed Arduino forum attachments are reference evidence only. They must not be copied, modified, or redistributed without permission from their authors.
 - GPL/AGPL works were inspected as research tools or comparison implementations only. No source from them is incorporated here.
-- If code is incorporated later, add its exact version, copyright, license text, modifications, and required notices before merging it.
+- The separately scoped libbladeRF patch below incorporates a small upstream source diff under LGPL-2.1-or-later. The offline regression extracts user-supplied upstream functions with their original notices; those function bodies are not bundled here.
+- For any further code incorporation, add its exact version, copyright, license text, modifications, and required notices before merging it.
 
 ## LAN protocol work consulted
 
@@ -36,6 +37,10 @@ This project depends on years of community investigation. The goal of this file 
 
 - **Marc Newlin / Bastille Research — [gr-nordic](https://github.com/BastilleResearch/gr-nordic)**. GNU Radio receiver/transmitter reference for Nordic Enhanced ShockBurst. Inspected at commit `5c468607118e2857d6920708618860ba1a9ea532`. Source headers state GPL-3.0-or-later; the root license is GPLv3. Its parser/transmitter has offsets specialized around a five-byte address in the inspected revision, so it should not be assumed to support this protocol's three-byte address without review and testing.
 - **kittennbfive — [gr-nrf24-sniffer](https://github.com/kittennbfive/gr-nrf24-sniffer)**. Current GNU Radio/HackRF receiver and C decoder supporting 2 Mbps, fixed payload size, CRC-16, and configurable 3–5-byte addresses; its documentation says address sizes other than five are untested. AGPL-3.0-or-later, copyright 2022–2026 kittennbfive. It is a promising receive-side validation tool, not incorporated code.
+
+## libbladeRF patch and offline regression
+
+- **Nuand LLC — [bladeRF/libbladeRF](https://github.com/Nuand/bladeRF/tree/fcf9423325ae49f5fdd2e5b52ab68bfc2576ad47)**. The separately licensed [SC8 metadata patch and regression tool](tools/libbladerf_sc8/README.md) target revision `fcf9423325ae49f5fdd2e5b52ab68bfc2576ad47`. The patch derives from `host/libraries/libbladeRF/src/streaming/sync.c`, copyright 2014–2015 Nuand LLC, LGPL-2.1-or-later. It adds SC8 metadata format handling to TX parameter validation and successful end-of-burst state cleanup. The project-authored inert harness compiles selected, hash-verified functions and headers supplied by the user, retaining upstream notices; it does not vendor or link a device library. Patch additions and harness are copyright 2026 Christopher Spitler, also LGPL-2.1-or-later. The canonical upstream LGPL text is preserved in `tools/libbladerf_sc8/LICENSE`. Full provenance, exact hashes, tested behavior, and hardware-validation limits are recorded in the component README.
 
 ## Original firmware research tools
 
@@ -64,7 +69,7 @@ The receive decoder and its synthetic fixtures were developed from the documente
 
 ## Capture-bench documentation consulted
 
-- **Nuand — [bladeRF 2.0 micro platform](https://www.nuand.com/bladerf-2-0-micro/), [xA4](https://www.nuand.com/product/bladerf-xa4/), [xA5](https://www.nuand.com/product/bladerf-xa5/), and [bladeRF accessories guidance](https://github.com/Nuand/bladeRF/wiki/bladeRF-Accessories)**. Device bandwidth, sample rate, MIMO/full-duplex capability, variant differences, CW output power, software compatibility, and the minimum attenuated-loopback precautions. Manufacturer facts are paraphrased; no Nuand code is incorporated.
+- **Nuand — [bladeRF 2.0 micro platform](https://www.nuand.com/bladerf-2-0-micro/), [xA4](https://www.nuand.com/product/bladerf-xa4/), [xA5](https://www.nuand.com/product/bladerf-xa5/), and [bladeRF accessories guidance](https://github.com/Nuand/bladeRF/wiki/bladeRF-Accessories)**. Device bandwidth, sample rate, MIMO/full-duplex capability, variant differences, CW output power, software compatibility, and the minimum attenuated-loopback precautions. Manufacturer documentation facts are paraphrased. The separate libbladeRF source patch is attributed above.
 - **Ettus Research / National Instruments — [USRP B210](https://www.ettus.com/all-products/ub210-kit/)**. Bandwidth, sample rate, MIMO/full-duplex capability, UHD support, and kit contents used in the capture-platform comparison. Manufacturer facts are paraphrased; no Ettus code is incorporated.
 - **Great Scott Gadgets — [HackRF One documentation](https://hackrf.readthedocs.io/en/stable/hackrf_one.html)**. Half-duplex operation, supported sample-rate range, sample resolution, and input-protection guidance used to delimit its role as a per-channel fallback. Documentation facts are paraphrased; no code is incorporated.
 - **Saleae — [Logic 8](https://www.saleae.com/products/logic-8)** and [simultaneous-channel sample-rate guidance](https://www.saleae.com/support/logic-software/capturing-data/what-sample-rate-settings-are-available). Channel count and digital sampling capability used to plan a correlated SPI/CE/IRQ capture. Manufacturer facts are paraphrased; no software is incorporated.

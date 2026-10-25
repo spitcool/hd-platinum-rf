@@ -1,0 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Christopher Spitler
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+# Unified diffs represent an empty context line with one required space.
+tools/libbladerf_sc8/sc8-metadata.patch whitespace=-blank-at-eol

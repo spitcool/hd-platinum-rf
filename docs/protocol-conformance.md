@@ -208,8 +208,101 @@ retained for diagnosis. A zero-packet capture does not qualify reception, and
 default metadata excludes payloads, CRC values and factory words.
 
 The image builds and has passed host log tests, independent parser fixtures and
-ELF layout review. It has not yet been loaded onto a DK. Actual reception needs
-a known-good radio reference before judging the SDR signal. A second DK can
-provide that later positive control. One fixed-channel receiver cannot establish
-simultaneous three-channel reception, analogue signal quality or shade
-acceptance. No original bridge firmware is included in this receiver.
+ELF layout review. It has also been loaded into an identified AAF0 DK's RAM.
+Startup checks confirmed the expected chip profile, crystal clock, idle READY
+state, disabled radio and PPI, and zero capture commands or receive attempts.
+The processor was halted after that check.
+
+A subsequent three-second recording of an original-system Sync received 2,945
+address-matched packets on 2452 MHz. Of these, 2,905 matched the expected native
+Sync body and passed both hardware and independent software CRC checks; 40 had
+bad hardware CRCs. The live register snapshot confirmed RX state, the expected
+packet configuration and the READY event. The hardware deadline completed,
+the radio and PPI were disabled, and the processor was halted afterward.
+The original bridge's room and shade definitions were unchanged. No manual
+shade-button press or enrollment claim was part of this reference check.
+
+An earlier 29.674 ms SDR fixture produced no packets at this receiver. That
+fixture contained 148 native packets across all three channels, including 49
+expected on 2452 MHz, addressed to a fictional identity absent from the saved
+inventories. The SDR's active readbacks confirmed 48 MS/s, 46 MHz bandwidth
+and the selected gain setting; the scheduled burst fell inside the receiver's
+three-second window. Successful submission is not proof of radiated samples.
+The original-system positive control establishes that this receiver accepts
+native packets, but the single short negative result does not isolate a cause:
+the wide SDR path remains unobserved, and transient interference is also possible.
+
+One fixed-channel receiver cannot establish simultaneous three-channel
+reception, analogue signal quality or shade acceptance. No original bridge
+firmware is included in this receiver.
+
+### Synthesized center-channel reception
+
+A subsequent comparison used the same fictional identity and 16 MS/s TX/RX
+at 2452 MHz. Ten short bursts alternated the existing flat lead with a variant
+containing a half-microsecond low-symbol lead immediately before the preamble.
+Each variant supplied 245 packets; payloads, CRCs, packet times, amplitude and
+radio settings were otherwise identical.
+The SDR monitor independently recovered all 490 transmitted packets with
+exact payloads and valid CRCs, and distinguished the intended lead shapes.
+
+The independent DK accepted 210 flat-lead packets and 226 modified-lead
+packets, with agreement between hardware and independently calculated CRCs.
+All 436 valid records matched the expected payloads and unique packet slots.
+A clock alignment anchored before transmission distinguished the alternating
+bursts; fitting relative clock drift gave a maximum timing residual below
+0.6 microseconds. Nine additional bad-CRC records fell in burst windows, with
+one outside them. Both receivers completed their bounded recordings and were
+stopped afterward.
+
+The first unchanged burst already delivered 43 of 49 packets, before any
+modified burst. Its waveform was identical to an earlier short gain-matched
+trial that delivered no packets. This establishes center-channel SDR-to-DK
+interoperability, but does not explain the earlier intermittent failures.
+Coherent signal power at the SDR monitor was about 3.6 dB lower in that first
+successful burst, so increased power at that monitor does not explain recovery;
+the propagation path at the DK was not measured separately.
+The modest difference between variants in one run does not establish that
+the added lead symbol is necessary or justify changing the public waveform.
+The full 48 MS/s three-channel transmission and shade acceptance remain
+separate checks.
+
+### Full-rate streaming investigation
+
+A 9,000-packet, 1.8045-second fictional native train was independently decoded
+from its written 48 MS/s IQ: 3,000 valid packets per channel. The first physical
+attempt stopped after four application chunks because the next chunk lacked
+the required 25 ms of scheduling lead. The metadata-adjusted transmit ring
+holds about 43 ms at this rate; after one application chunk, that lead
+requirement leaves too little space for continued submission.
+
+A second attempt passed the entire preloaded waveform to one library call,
+removing the pauses between application chunks. Submission completed, but the
+call returned about 321 ms after the scheduled waveform end. Both attempts
+produced only three decoded packets in an early segment at the independent
+receiver. Its configuration and observed rearm timing matched successful
+controls. The radio was stopped and the DK halted after each capture.
+These results do not qualify sustained full-rate transmission. They support
+investigating sample delivery, without establishing a calibrated USB throughput
+limit or explaining the earlier repeater-route failures.
+
+An SC8_Q7 candidate halves sample transport from 192 to 96 MB/s at the same
+48 MS/s rate. Independent decoding verified all 9,000 quantized packets and
+their CRCs, with unchanged timing, channel rotation and zero-filled gaps.
+Review of libbladeRF at `fcf9423325ae49f5fdd2e5b52ab68bfc2576ad47`
+found two missing SC8 metadata predicates: burst parameter handling and
+successful end-of-burst cleanup. Actual-source inert tests reproduce both
+defects and validate the two-condition fix while preserving SC16 output.
+The [patch and portable regression harness](../tools/libbladerf_sc8/README.md)
+are retained separately under the upstream library's license.
+
+A physical SC8 check using the private patched build received 63 valid and
+19 bad-CRC records before a USB transfer timeout. Their measured same-channel
+grid was approximately 603.873 microseconds, versus the intended 601.5;
+activity covered only an early segment, with no verified tail. This repeatable
+stretch is much larger than the relative clock drift in the successful
+center-channel check. It motivates investigating legacy FPGA message-boundary
+handling; it does not establish a complete transmission or isolate the cause
+of the USB timeout. The host serialization fix remains independently tested,
+while sustained SC8 RF output remains unqualified. The normal installed library
+and public radio backend have not been changed.

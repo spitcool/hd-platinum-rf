@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Christopher Spitler
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+include tools/libbladerf_sc8/README.md
+include tools/libbladerf_sc8/LICENSE
+include tools/libbladerf_sc8/check.py
+include tools/libbladerf_sc8/probe.c
+include tools/libbladerf_sc8/sc8-metadata.patch
