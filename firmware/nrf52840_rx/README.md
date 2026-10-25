@@ -6,9 +6,9 @@ It is a small receive-only experiment for an nRF52840 DK. It has no transmit,
 ACK, flash-writing, USB, UART, SDK, heap, or manufacturer-firmware component.
 Building it does not access a board. The register configuration is grounded in
 Nordic documentation. The AAF0 profile has received original-system native
-packets and synthesized SDR packets at 2452 MHz with agreeing hardware and
-independent software CRCs. Other channels and shade acceptance remain
-unqualified. See the
+packets at 2452 MHz and synthesized SDR packets in separate recordings on
+2433, 2452 and 2471 MHz, with agreeing hardware and independent software CRCs.
+Shade acceptance remains unqualified. See the
 [protocol conformance results](../../docs/protocol-conformance.md).
 
 ## Build

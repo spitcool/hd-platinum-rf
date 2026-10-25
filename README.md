@@ -16,6 +16,7 @@ The project treats the LAN protocol and the two distinct RF paths as separate re
 
 ## Documentation
 
+- [Next RF validation steps](docs/rf-validation-plan.md) — three-channel receiver results and the staged plan for shade control, new enrollment, product features and clients.
 - [Laptop handoff](docs/handoff.md) — current implementation, unresolved RF findings, and setup for continuing on another computer.
 - [LAN protocol](docs/lan-protocol.md) — byte-level framing, records, commands, feature codes, compatibility differences, and sanitized live evidence.
 - [RF protocol](docs/rf-protocol.md) — device-generation boundary, handheld payloads, PHY/framing hypotheses, bridge bandwidth evidence, and the capture/validation procedure.

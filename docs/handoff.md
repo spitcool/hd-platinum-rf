@@ -3,6 +3,11 @@
 
 # Laptop handoff — 2026-10-24
 
+The latest [RF validation plan](rf-validation-plan.md) supersedes the next-test
+order in this chronological handoff. It records the matched firmware update,
+independent reception on all three native channels, and the remaining watched
+shade and enrollment tests. The public live native backend is still unqualified.
+
 The objective is a replacement Platinum bridge covering RF control and
 enrollment, the original mobile app, and LAN integration with Control4 and other
 clients. Original-app discovery, inventory loading, and primary-position control

@@ -303,6 +303,42 @@ activity covered only an early segment, with no verified tail. This repeatable
 stretch is much larger than the relative clock drift in the successful
 center-channel check. It motivates investigating legacy FPGA message-boundary
 handling; it does not establish a complete transmission or isolate the cause
-of the USB timeout. The host serialization fix remains independently tested,
-while sustained SC8 RF output remains unqualified. The normal installed library
-and public radio backend have not been changed.
+of the USB timeout. At this stage, the host serialization fix was independently
+tested, but sustained SC8 RF output remained unqualified.
+
+### Matched firmware comparison
+
+The same private patched library and byte-identical SC8 waveform were then
+tested with official FX3 firmware 2.6.0 and FPGA 0.16.0, replacing firmware
+2.4.0 and FPGA 0.15.3. Complete flash and OTP backups were read twice before
+the update. Independent readback confirmed the new firmware and unchanged
+calibration, OTP and all flash outside the firmware region. The FPGA was loaded
+into volatile RAM only.
+
+Three separate finite transmissions retained the same 48 MS/s rate, gain,
+bandwidth, buffering, scheduling lead and single-call submission. Only the DK's
+receive channel changed between these three runs. Each channel had 3,000
+expected packet slots:
+
+| Receive frequency | Exact CRC-valid packets | Bad-CRC records | Fitted same-channel interval |
+| --- | ---: | ---: | ---: |
+| 2433 MHz | 2,391 | 32 | 601.49623 microseconds |
+| 2452 MHz | 2,682 | 48 | 601.49625 microseconds |
+| 2471 MHz | 2,768 | 15 | 601.49622 microseconds |
+
+Every valid packet matched the expected body and independently calculated CRC.
+Each recording included its first and last expected packet, with a unique
+alignment to the channel schedule and coverage through the final phase.
+The fitted intervals differ from the nominal 601.5 microseconds by about
+minus 6.3 ppm; maximum timing residual was below 0.62 microseconds. The earlier
+approximately 3,945 ppm stretch and early USB timeout did not recur. All three
+submissions returned about 43 ms before their scheduled end, and transmission
+was allowed to finish before shutdown. The radio handles closed and the DK
+completed its deadline and halted without capture-buffer drops.
+
+This establishes sustained native packet reception on each frequency in
+separate runs, not lossless or simultaneous reception of all three channels.
+The firmware and FPGA changed together, so this comparison does not isolate
+which component fixed each symptom. It also does not establish shade acceptance
+or explain the earlier 2440 MHz repeater-route failures. The normal installed
+library and public radio backend remain unchanged.
