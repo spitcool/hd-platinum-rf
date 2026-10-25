@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "author": "Christopher Spitler",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "board-m5stack-core-s3",
+      "id": "core",
+      "top": 0,
+      "left": 0,
+      "attrs": {
+        "flashSize": "16",
+        "psramSize": "8",
+        "psramType": "quad",
+        "serialInterface": "USB_SERIAL_JTAG"
+      }
+    },
+    {
+      "type": "chip-cores3-power",
+      "id": "power",
+      "top": 20,
+      "left": 430,
+      "attrs": {}
+    }
+  ],
+  "connections": [
+    [
+      "core:G12",
+      "power:SDA",
+      "green",
+      []
+    ],
+    [
+      "core:G11",
+      "power:SCL",
+      "blue",
+      []
+    ]
+  ]
+}

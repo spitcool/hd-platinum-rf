@@ -205,7 +205,7 @@ Public status describes reproducible technical evidence, not any contributor's p
 
 ### Emulator validation scope
 
-Use the [dry-run and live runtime commands](../README.md#bridge-emulator) to
+Use the [dry-run and live runtime commands](project-details.md#bridge-emulator) to
 exercise the integrated service. Dry-run must load the same private mappings
 and inventory intended for live use, while generating no RF. Verify supported
 `$dat`, `$dmy`, feature-04 `$pss`/`$psr`, `$rls`, and app startup date/time/year

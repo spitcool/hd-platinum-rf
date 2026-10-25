@@ -1,0 +1,663 @@
+diff --git a/cli/src/lib.rs b/cli/src/lib.rs
+index 3069395..3c5565b 100644
+--- a/cli/src/lib.rs
++++ b/cli/src/lib.rs
+@@ -35,6 +35,13 @@ fn validate_timing(o: &Opts) -> Result<(), String> {
+     Ok(())
+ }
+ 
++fn validate_forwarding(o: &Opts) -> Result<(), String> {
++    if !o.hostfwd.is_empty() && (o.wifi.is_none() || !matches!(o.net.as_str(), "nat" | "user")) {
++        return Err("--hostfwd requires --wifi and --net nat (or user)".into());
++    }
++    Ok(())
++}
++
+ fn cache_config() -> Result<esp32s3::approximate_cache::CacheConfig, String> {
+     let mut cache = esp32s3::approximate_cache::CacheConfig::default();
+     for (name, cycles) in [("ESP32SIM_CACHE_FILL", &mut cache.fill_cycles), ("ESP32SIM_CACHE_WRITEBACK", &mut cache.writeback_cycles)] {
+@@ -71,6 +78,7 @@ pub struct Opts {
+     pub flash_image: Option<String>, pub flash_at: Vec<String>, pub boot: Option<String>, pub flash_mb: Option<usize>, pub psram_mb: Option<usize>,
+     pub mac: Option<[u8; 6]>, pub strap: Option<u32>, pub reset_cause: Option<u32>, pub efuse_regs: Option<String>, pub regs_init: Option<String>,
+     pub board: String, pub wifi: Option<String>, pub ble: bool, pub ble_full: bool, pub ble_observe: bool, pub ble_scan: bool, pub net: String, pub cam_image: Option<String>, pub cam_stream: Option<String>, pub cam_size: Option<String>, pub cam_fps: f64,
++    pub hostfwd: Vec<esp_soc::nat::HostForward>,
+     pub spi2_timing: bool, pub measured_te: bool,
+     pub max_insns: u64, pub max_seconds: Option<f64>, pub script: Option<String>, pub serial: Option<String>,
+     pub console: Option<String>, pub console_prefix: bool, pub realtime: bool, pub web_port: Option<u16>, pub web_dir: Option<String>, pub no_reboot: bool,
+@@ -122,6 +130,7 @@ pub fn parse(args: &[String], default_chip: &str) -> Opts {
+                 if full { i += 1; o.ble_full = true; } else { o.ble = true; }
+             },
+             "--net" => o.net = next(),
++            "--hostfwd" => o.hostfwd.push(next().parse().unwrap_or_else(|e| usage_error(&format!("--hostfwd: {e}")))),
+             "--cam-image" => o.cam_image = Some(next()),
+             "--cam-stream" => o.cam_stream = Some(next()),
+             "--cam-size" => o.cam_size = Some(next()),
+@@ -174,6 +183,7 @@ pub fn parse(args: &[String], default_chip: &str) -> Opts {
+         }
+         i += 1;
+     }
++    validate_forwarding(&o).unwrap_or_else(|e| usage_error(&e));
+     if (o.ble_observe || o.ble_scan) && !o.ble_full { usage_error("BLE central/observer use requires --ble full"); }
+     if o.ble_full && o.ble { usage_error("--ble full and --ble are mutually exclusive"); }
+     if o.ble_full && !matches!(o.chip.as_str(), "c3" | "esp32c3") { usage_error("--ble full requires C3"); }
+@@ -266,7 +276,7 @@ fn setup_s3(o: &Opts) -> esp32s3::Machine {
+     m.bus.attach_board_devices();
+     if !o.debug.is_empty() { let mut f = esp_soc::DebugFlags::from_env(); for d in &o.debug { f.parse(d); } m.set_debug(&f); }
+     if let Some(spec) = &o.wifi {
+-        let (cfg, nat) = wifi_config(spec, o.net == "nat" || o.net == "user", m.bus.debug.has("net"));
++        let (cfg, nat) = wifi_config(spec, o.net == "nat" || o.net == "user", m.bus.debug.has("net"), &o.hostfwd);
+         m.bus.attach_wifi(cfg, nat).unwrap_or_else(|e| { eprintln!("--wifi: {e}"); std::process::exit(2) });
+     }
+     if let Some(p) = &o.cam_image { match esp_soc::picture::load(p) { Ok(pic) => { eprintln!("[emu] camera picture {} ({}x{})", p, pic.w, pic.h); m.bus.board.set_camera_picture(pic).unwrap_or_else(|e| usage_error(e)); } Err(e) => { eprintln!("[emu] {}", e); std::process::exit(2); } } }
+@@ -300,10 +310,16 @@ fn setup_s3(o: &Opts) -> esp32s3::Machine {
+ 
+ /// `--wifi SPEC` with `--net`: the virtual access point's configuration and, for `--net nat`,
+ /// the NAT to the host, the same for every chip.
+-fn wifi_config(spec: &str, nat: bool, net_log: bool) -> (esp_soc::wifi::ApConfig, Option<esp_soc::nat::Nat>) {
++fn wifi_config(spec: &str, nat: bool, net_log: bool, forwards: &[esp_soc::nat::HostForward]) -> (esp_soc::wifi::ApConfig, Option<esp_soc::nat::Nat>) {
+     let cfg = esp_soc::wifi::ApConfig::parse(spec).unwrap_or_else(|e| { eprintln!("--wifi: {e}"); std::process::exit(2) });
+     eprintln!("[emu] virtual AP '{}' bssid {} channel {} ({})", cfg.ssid, esp_soc::wifi::mac_str(&cfg.bssid), cfg.channel, if cfg.psk.is_some() { "WPA2-PSK" } else { "open" });
+-    let nat = nat.then(|| esp_soc::nat::Nat::new(net_log));
++    let mut nat = nat.then(|| esp_soc::nat::Nat::new(net_log));
++    if let Some(nat) = &mut nat {
++        for forward in forwards {
++            let bound = nat.add_forward(forward).unwrap_or_else(|e| usage_error(&format!("--hostfwd {}: {e}", forward.bind)));
++            eprintln!("[emu] TCP host {} -> guest 10.0.2.15:{}", bound, forward.guest_port);
++        }
++    }
+     if let Some(nat) = &nat { eprintln!("[emu] NAT to the host network enabled (DNS via {}.{}.{}.{})", nat.resolver[0], nat.resolver[1], nat.resolver[2], nat.resolver[3]); }
+     let net = esp_soc::net::VirtualNet::new(false);   // its fixed addresses, for the line below
+     eprintln!("[emu] virtual network: station {}.{}.{}.{}, gateway {}.{}.{}.{} (DHCP, ARP, ICMP, DNS, NTP)", net.sta_ip[0], net.sta_ip[1], net.sta_ip[2], net.sta_ip[3], net.gw_ip[0], net.gw_ip[1], net.gw_ip[2], net.gw_ip[3]);
+@@ -319,7 +335,7 @@ fn setup_c3(o: &Opts) -> esp32c3::Machine {
+         m.bus.periph.ble_lc.scan(o.ble_scan);
+     }
+     if let Some(spec) = &o.wifi {
+-        let (cfg, nat) = wifi_config(spec, o.net == "nat" || o.net == "user", m.bus.debug.has("net"));
++        let (cfg, nat) = wifi_config(spec, o.net == "nat" || o.net == "user", m.bus.debug.has("net"), &o.hostfwd);
+         m.bus.attach_wifi(cfg, nat).unwrap_or_else(|e| { eprintln!("--wifi: {e}"); std::process::exit(2) });
+     }
+     for (flag, on) in [("--board", o.board != "atech14" && o.board != "none"), ("--cam-image", o.cam_image.is_some()), ("--cam-stream", o.cam_stream.is_some()), ("--cam-size", o.cam_size.is_some()), ("--psram-mb", o.psram_mb.is_some()), ("--efuse-regs", o.efuse_regs.is_some()), ("--regs-init", o.regs_init.is_some()), ("--regstat", o.regstat.is_some())] {
+@@ -336,7 +352,7 @@ fn setup_esp32(o: &Opts) -> esp32::Machine {
+     m.bus.board = esp32::board::make_board(board).unwrap_or_else(|| usage_error(&format!("unknown classic ESP32 board '{board}' (none, bare, esp32dev, ttgo-tdisplay)")));
+     m.bus.attach_board_devices();
+     if let Some(spec) = &o.wifi {
+-        let (cfg, nat) = wifi_config(spec, o.net == "nat" || o.net == "user", m.bus.debug.has("net"));
++        let (cfg, nat) = wifi_config(spec, o.net == "nat" || o.net == "user", m.bus.debug.has("net"), &o.hostfwd);
+         m.bus.attach_wifi(cfg, nat).unwrap_or_else(|e| { eprintln!("--wifi: {e}"); std::process::exit(2) });
+     }
+     for (flag, on) in [("--cam-image", o.cam_image.is_some()), ("--psram-mb", o.psram_mb.is_some()), ("--efuse-regs", o.efuse_regs.is_some()), ("--regs-init", o.regs_init.is_some()), ("--regstat", o.regstat.is_some())] {
+@@ -353,7 +369,7 @@ fn setup_c6(o: &Opts) -> esp32c6::Machine {
+     match esp32c6::board::make_board(name) { Some(b) => m.bus.board = b, None => { eprintln!("--board {}: none or waveshare-c6-lcd147 on the C6", name); std::process::exit(2) } }
+     m.bus.attach_board_devices();
+     if let Some(spec) = &o.wifi {
+-        let (cfg, nat) = wifi_config(spec, o.net == "nat" || o.net == "user", m.bus.debug.has("net"));
++        let (cfg, nat) = wifi_config(spec, o.net == "nat" || o.net == "user", m.bus.debug.has("net"), &o.hostfwd);
+         m.bus.attach_wifi(cfg, nat).unwrap_or_else(|e| { eprintln!("--wifi: {e}"); std::process::exit(2) });
+     }
+     for (flag, on) in [("--cam-image", o.cam_image.is_some()), ("--cam-stream", o.cam_stream.is_some()), ("--cam-size", o.cam_size.is_some()), ("--psram-mb", o.psram_mb.is_some()), ("--efuse-regs", o.efuse_regs.is_some()), ("--regs-init", o.regs_init.is_some()), ("--regstat", o.regstat.is_some())] {
+diff --git a/cli/src/tests.rs b/cli/src/tests.rs
+index 92af6a5..89decb2 100644
+--- a/cli/src/tests.rs
++++ b/cli/src/tests.rs
+@@ -1,5 +1,23 @@
+ use super::*;
+ 
++#[test]
++fn host_forwarding_parses_repeated_rules_and_requires_a_nat_access_point() {
++    let args: Vec<String> = ["esp32sim", "--wifi", "ssid=Wokwi-GUEST", "--net", "user",
++        "--hostfwd", "127.0.0.1:18080:8077", "--hostfwd", "1523:522"].into_iter().map(str::to_string).collect();
++    let mut options = parse(&args, "s3");
++    assert_eq!(options.hostfwd.len(), 2);
++    assert_eq!(options.hostfwd[0].bind.port(), 18080);
++    assert_eq!(options.hostfwd[0].guest_port, 8077);
++    assert_eq!(options.hostfwd[1].guest_port, 522);
++    options.net = "none".into();
++    assert!(validate_forwarding(&options).is_err());
++    options.net = "nat".into();
++    options.wifi = None;
++    assert!(validate_forwarding(&options).is_err());
++    options.hostfwd.clear();
++    assert!(validate_forwarding(&options).is_ok());
++}
++
+ #[test]
+ fn ble_is_opt_in_and_requires_a_supported_adapter_and_symbols() {
+     assert!(!parse(&["esp32sim".into()], "esp32s3").ble);
+diff --git a/docs/cli.md b/docs/cli.md
+index c217561..b0b2382 100644
+--- a/docs/cli.md
++++ b/docs/cli.md
+@@ -35,6 +35,7 @@ PSRAM and register presets.
+ | `--ble` | opt-in virtual BLE controller on S3/C3/C6; requires the matching application `--elf` |
+ | `--wifi SPEC` | attach a virtual access point the WiFi blob hears, plus a virtual network (DHCP/ARP/ICMP/DNS/SNTP; station 10.0.2.15, gateway 10.0.2.2) — for example `ssid=demo,chan=6,psk=demo-password,bssid=02:00:00:00:00:01`. `password` and `pass` alias `psk`; unknown keys and invalid values are rejected. Open and WPA2-PSK networks both join end to end, on S3, C3, C6 and the classic ESP32 (docs/wifi-plan.md, docs/esp32c3.md, docs/wifi-c6-plan.md) |
+ | `--net nat\|none` | what the virtual network does with traffic it is not itself answering: `nat` (default; `user` is an alias) forwards TCP and UDP to the host's own network through ordinary sockets, `none` refuses it |
++| `--hostfwd [127.0.0.1:]HOSTPORT:GUESTPORT` | repeat to forward loopback TCP listeners into the station TCP stack (10.0.2.15), e.g. `--hostfwd 18078:8077 --hostfwd 1522:522`; requires `--wifi` and `--net nat`, at most 16 listeners and 64 total active TCP flows |
+ | `--trace-fn PREFIX` (repeatable) | log every call to functions whose name starts with PREFIX, with args and caller; append `$` for an exact name |
+ | `--regstat FILE` | write per-register access statistics (count, pc, symbol) at exit — for reverse-engineering |
+ 
+diff --git a/esp-soc/src/machine.rs b/esp-soc/src/machine.rs
+index 1efbbaf..adb04c8 100644
+--- a/esp-soc/src/machine.rs
++++ b/esp-soc/src/machine.rs
+@@ -1145,6 +1145,7 @@ impl<S: Soc> Machine<S> {
+                     ev.push((c, ScriptAction::TouchPad(pn, touched)));
+                 }
+                 "serial" => ev.push((c, ScriptAction::Serial(format!("{}\n", rest)))),
++                "serialraw" => ev.push((c, ScriptAction::Serial(rest.to_owned()))),
+                 // adc <gpio> <volts>: constant voltage on an analog pad
+                 "adc" => { let mut p = rest.split_whitespace(); let pn = pin(p.next().unwrap_or(""))?;
+                            let v: f32 = p.next().and_then(|x| x.parse().ok()).ok_or_else(|| format!("line {}: adc <gpio> <volts>", ln + 1))?;
+diff --git a/esp-soc/src/nat.rs b/esp-soc/src/nat.rs
+index 502a8e5..4ea2ef4 100644
+--- a/esp-soc/src/nat.rs
++++ b/esp-soc/src/nat.rs
+@@ -6,7 +6,7 @@
+ 
+ use std::collections::VecDeque;
+ use std::io::{self, ErrorKind, Read, Write};
+-use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpStream, UdpSocket};
++use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4, TcpListener, TcpStream, UdpSocket};
+ use std::sync::atomic::{AtomicUsize, Ordering};
+ use std::sync::mpsc::{channel, Receiver, TryRecvError};
+ use crate::net::packet::{ethernet, ip_packet, transport_checksum, udp_packet, GATEWAY_MAC};
+@@ -18,6 +18,10 @@ const IDLE_CLOSE_US: u64 = 120_000_000;
+ const TIME_WAIT_US: u64 = 30_000_000;
+ const MAX_FLOWS: usize = 64;
+ const MAX_CONNECTS: usize = 8;
++const MAX_FORWARDS: usize = 16;
++const ACCEPT_BATCH: usize = 8;
++const INBOUND_HANDSHAKE_US: u64 = 10_000_000;
++const FIRST_FORWARD_PORT: u16 = 49152;
+ const UDP_BATCH: usize = 16;
+ const FIN: u8 = 0x01;
+ const SYN: u8 = 0x02;
+@@ -28,6 +32,33 @@ const PSH: u8 = 0x08;
+ fn ip(a: &[u8; 4]) -> Ipv4Addr { Ipv4Addr::from(*a) }
+ fn address(a: &[u8; 4], port: u16) -> SocketAddr { SocketAddr::new(IpAddr::V4(ip(a)), port) }
+ 
++/// A loopback TCP listener forwarded to the station's TCP stack, not an application proxy.
++#[derive(Clone, Debug, PartialEq, Eq)]
++pub struct HostForward {
++    pub bind: SocketAddrV4,
++    pub guest_port: u16,
++}
++
++impl std::str::FromStr for HostForward {
++    type Err = String;
++    fn from_str(spec: &str) -> Result<Self, Self::Err> {
++        let fields: Vec<_> = spec.split(':').collect();
++        let (host, host_port, guest_port) = match fields.as_slice() {
++            [host_port, guest_port] => ("127.0.0.1", *host_port, *guest_port),
++            [host, host_port, guest_port] => (*host, *host_port, *guest_port),
++            _ => return Err("expected [127.0.0.1:]HOSTPORT:GUESTPORT".into()),
++        };
++        let host: Ipv4Addr = host.parse().map_err(|_| "expected a loopback IPv4 address")?;
++        if !host.is_loopback() { return Err("host forwarding may bind only a loopback IPv4 address".into()); }
++        let port = |s: &str| s.parse::<u16>().ok().filter(|p| *p != 0).ok_or_else(|| "ports must be in 1..65535".to_string());
++        Ok(Self { bind: SocketAddrV4::new(host, port(host_port)?), guest_port: port(guest_port)? })
++    }
++}
++
++struct Forward { listener: TcpListener, guest_port: u16 }
++#[derive(Clone, Copy, PartialEq, Eq)]
++struct Guest { mac: [u8; 6], ip: [u8; 4], gateway: [u8; 4] }
++
+ // A permit belongs to the blocking connect worker, not its guest flow. Removing a flow with RST
+ // must not free a slot while connect_timeout is still running on the host.
+ static CONNECTING: AtomicUsize = AtomicUsize::new(0);
+@@ -70,6 +101,7 @@ impl Sent {
+ struct Tcp {
+     guest_mac: [u8; 6], guest_ip: [u8; 4], guest_port: u16, dst_ip: [u8; 4], dst_port: u16,
+     transport: Transport,
++    inbound: bool,
+     guest_write: GuestWrite,
+     host_closed: bool,
+     our_seq: u32,
+@@ -118,9 +150,10 @@ impl Tcp {
+         seg.extend_from_slice(&self.guest_port.to_be_bytes());
+         seg.extend_from_slice(&seq.to_be_bytes());
+         seg.extend_from_slice(&self.guest_seq.to_be_bytes());
+-        seg.extend_from_slice(&[0x50, flags]);
++        seg.extend_from_slice(&[if flags & SYN != 0 { 0x60 } else { 0x50 }, flags]);
+         seg.extend_from_slice(&(WINDOW - self.to_host.len() as u16).to_be_bytes());
+         seg.extend_from_slice(&[0; 4]);
++        if flags & SYN != 0 { seg.extend_from_slice(&[2, 4, (MSS >> 8) as u8, MSS as u8]); }
+         seg.extend_from_slice(data);
+         let check = transport_checksum(&self.dst_ip, &self.guest_ip, 6, &seg);
+         seg[16..18].copy_from_slice(&check.to_be_bytes());
+@@ -174,6 +207,9 @@ pub struct Nat {
+     tcp: Vec<Tcp>,
+     udp: Vec<Udp>,
+     isn: u32,
++    forwards: Vec<Forward>,
++    guest: Option<Guest>,
++    forward_port: u16,
+     pub resolver: [u8; 4],
+     pub log: bool,
+     pub tcp_opened: u64, pub tcp_refused: u64, pub udp_flows: u64,
+@@ -183,10 +219,72 @@ pub struct Nat {
+ 
+ impl Nat {
+     pub fn new(log: bool) -> Self {
+-        Self { tcp: Vec::new(), udp: Vec::new(), isn: 0x1000, resolver: host_resolver(), log,
++        Self { tcp: Vec::new(), udp: Vec::new(), isn: 0x1000,
++            forwards: Vec::new(), guest: None, forward_port: FIRST_FORWARD_PORT, resolver: host_resolver(), log,
+             tcp_opened: 0, tcp_refused: 0, udp_flows: 0, udp_evicted: 0, udp_send_errors: 0, bytes_to_host: 0, bytes_to_guest: 0 }
+     }
+ 
++    /// Bind now so bad addresses, duplicate ports and unavailable listeners fail at startup.
++    pub fn add_forward(&mut self, forward: &HostForward) -> io::Result<SocketAddr> {
++        if !forward.bind.ip().is_loopback() || forward.guest_port == 0 || self.forwards.len() >= MAX_FORWARDS {
++            return Err(io::Error::new(ErrorKind::InvalidInput, "expected a loopback address, nonzero guest port and at most 16 forwards"));
++        }
++        let listener = TcpListener::bind(forward.bind)?;
++        listener.set_nonblocking(true)?;
++        let bound = listener.local_addr()?;
++        self.forwards.push(Forward { listener, guest_port: forward.guest_port });
++        Ok(bound)
++    }
++
++    /// DHCP ACKs and packets from the configured station identify its actual Ethernet address.
++    pub fn observe_guest(&mut self, mac: [u8; 6], ip: [u8; 4], gateway: [u8; 4]) {
++        if mac == [0; 6] || mac[0] & 1 != 0 { return; }
++        let guest = Guest { mac, ip, gateway };
++        if self.guest.is_some_and(|old| old != guest) {
++            for flow in self.tcp.iter_mut().filter(|flow| flow.inbound) { flow.transport = Transport::Closed; }
++        }
++        self.guest = Some(guest);
++    }
++
++    fn accept_forwarded(&mut self, now_us: u64, out: &mut Vec<Vec<u8>>) {
++        let Some(guest) = self.guest else { return; };
++        for forward in &self.forwards {
++            for _ in 0..ACCEPT_BATCH {
++                let socket = match forward.listener.accept() {
++                    Ok((socket, _)) => socket,
++                    Err(e) if e.kind() == ErrorKind::Interrupted => continue,
++                    Err(_) => break,
++                };
++                if self.tcp.len() >= MAX_FLOWS {
++                    if let Some(i) = self.tcp.iter().position(|c| matches!(c.transport, Transport::TimeWait | Transport::Closed)) {
++                        self.tcp.remove(i);
++                    } else { self.tcp_refused += 1; continue; }
++                }
++                if socket.set_nonblocking(true).is_err() || socket.set_nodelay(true).is_err() { continue; }
++                // The accepted socket's host-side port is unrelated to the virtual four-tuple.
++                // Allocate a distinct gateway port, including against existing outbound flows.
++                let mut source_port = None;
++                for _ in FIRST_FORWARD_PORT..=u16::MAX {
++                    let candidate = self.forward_port;
++                    self.forward_port = self.forward_port.checked_add(1).unwrap_or(FIRST_FORWARD_PORT);
++                    if !self.tcp.iter().any(|c| c.guest_ip == guest.ip && c.guest_port == forward.guest_port
++                        && c.dst_ip == guest.gateway && c.dst_port == candidate) {
++                        source_port = Some(candidate); break;
++                    }
++                }
++                let Some(source_port) = source_port else { self.tcp_refused += 1; continue; };
++                self.isn = self.isn.wrapping_add(0x10000);
++                let mut flow = Tcp { guest_mac: guest.mac, guest_ip: guest.ip, guest_port: forward.guest_port,
++                    dst_ip: guest.gateway, dst_port: source_port, transport: Transport::Connected(socket), inbound: true,
++                    guest_write: GuestWrite::Open, host_closed: false, our_seq: self.isn, guest_seq: 0,
++                    guest_window: 0, to_host: VecDeque::new(), unacked: VecDeque::new(), last_activity_us: now_us };
++                out.push(flow.send(SYN, Vec::new(), now_us));
++                self.tcp.push(flow);
++                if self.log { eprintln!("[nat] host -> {}:{} (gateway port {})", ip(&guest.ip), forward.guest_port, source_port); }
++            }
++        }
++    }
++
+     /// Forward a UDP datagram through a connected socket, which accepts replies only from its peer.
+     #[allow(clippy::too_many_arguments, reason = "packet fields stay explicit at the protocol boundary")]
+     pub fn udp_out(&mut self, gmac: &[u8; 6], gip: &[u8; 4], sport: u16, dip: &[u8; 4], reply_src: &[u8; 4],
+@@ -249,7 +347,7 @@ impl Nat {
+             if let Some(i) = evict { self.tcp.remove(i); }
+             self.isn = self.isn.wrapping_add(0x10000);
+             self.tcp.push(Tcp { guest_mac: *gmac, guest_ip: *gip, guest_port: sport, dst_ip: *dip, dst_port: dport,
+-                transport: Transport::Connecting(pending), guest_write: GuestWrite::Open, host_closed: false,
++                transport: Transport::Connecting(pending), inbound: false, guest_write: GuestWrite::Open, host_closed: false,
+                 our_seq: self.isn, guest_seq: seq.wrapping_add(1), guest_window: window,
+                 to_host: VecDeque::new(), unacked: VecDeque::new(), last_activity_us: now_us });
+             if self.log { eprintln!("[nat] TCP {}:{} -> {}:{} connecting", ip(gip), sport, ip(dip), dport); }
+@@ -257,12 +355,27 @@ impl Nat {
+         }
+         let Some(i) = idx else { return Vec::new() };
+         let c = &mut self.tcp[i];
++        if c.inbound && c.handshake_pending() {
++            if flags & RST != 0 {
++                if flags & ACK != 0 && ack == c.our_seq { c.transport = Transport::Closed; self.tcp_refused += 1; }
++                return Vec::new();
++            }
++            if flags & (SYN | ACK | FIN) != (SYN | ACK) || ack != c.our_seq { return Vec::new(); }
++            c.guest_seq = seq.wrapping_add(1);
++            c.guest_window = window;
++            c.acknowledge(ack);
++            c.accept(seq.wrapping_add(1), data, false);
++            c.last_activity_us = now_us;
++            self.tcp_opened += 1;
++            return vec![c.segment(ACK, &[], c.our_seq)];
++        }
+         c.last_activity_us = now_us;
+         if flags & RST != 0 { c.transport = Transport::Closed; return Vec::new(); }
+         if matches!(c.transport, Transport::TimeWait) {
+             return if flags & FIN != 0 { vec![c.segment(ACK, &[], c.our_seq)] } else { Vec::new() };
+         }
+         if flags & SYN != 0 {
++            if c.inbound { return vec![c.segment(ACK, &[], c.our_seq)]; } // retransmitted SYN-ACK
+             return if c.handshake_pending() { vec![c.segment(SYN | ACK, &[], c.unacked[0].seq)] } else { Vec::new() };
+         }
+         if !matches!(c.transport, Transport::Connected(_)) { return Vec::new(); }
+@@ -278,8 +391,14 @@ impl Nat {
+     /// Pump a bounded amount of host traffic, then retransmit and expire flows.
+     pub fn poll(&mut self, now_us: u64) -> Vec<Vec<u8>> {
+         let mut out = Vec::new();
++        self.accept_forwarded(now_us, &mut out);
+         for c in &mut self.tcp {
+             if c.closed() { continue; }
++            if c.inbound && c.handshake_pending() && now_us.wrapping_sub(c.last_activity_us) >= INBOUND_HANDSHAKE_US {
++                self.tcp_refused += 1;
++                c.transport = Transport::Closed;
++                continue;
++            }
+             if c.host_closed && c.guest_write == GuestWrite::Closed && c.unacked.is_empty()
+                 && matches!(c.transport, Transport::Connected(_)) {
+                 // Release the host socket but keep enough state to re-ACK a lost final ACK.
+diff --git a/esp-soc/src/nat/tests.rs b/esp-soc/src/nat/tests.rs
+index e20436d..9db5a91 100644
+--- a/esp-soc/src/nat/tests.rs
++++ b/esp-soc/src/nat/tests.rs
+@@ -3,7 +3,7 @@ use std::net::TcpListener;
+ 
+ fn flow() -> Tcp {
+     Tcp { guest_mac: [2; 6], guest_ip: [10, 0, 2, 15], guest_port: 1234,
+-        dst_ip: [127, 0, 0, 1], dst_port: 80, transport: Transport::Closed,
++        dst_ip: [127, 0, 0, 1], dst_port: 80, transport: Transport::Closed, inbound: false,
+         guest_write: GuestWrite::Open, host_closed: false,
+         our_seq: 100, guest_seq: 200, guest_window: WINDOW,
+         to_host: VecDeque::new(), unacked: VecDeque::new(), last_activity_us: 0 }
+@@ -274,3 +274,180 @@ fn udp_ignores_other_senders_and_preserves_dns_reply_address() {
+     assert_eq!(&frames[0][26..30], &[10, 0, 2, 3]);
+     assert_eq!(&frames[0][42..], b"answer");
+ }
++
++fn forwarded_nat(port: u16) -> (Nat, TcpStream) {
++    let mut nat = Nat::new(false);
++    let addr = nat.add_forward(&HostForward {
++        bind: SocketAddrV4::new(Ipv4Addr::LOCALHOST, 0), guest_port: port,
++    }).unwrap();
++    nat.observe_guest([2; 6], [10, 0, 2, 15], [10, 0, 2, 2]);
++    let host = TcpStream::connect(addr).unwrap();
++    host.set_read_timeout(Some(std::time::Duration::from_secs(1))).unwrap();
++    (nat, host)
++}
++
++fn forwarded_reply(syn: &[u8], seq: u32, ack: u32, flags: u8, data: &[u8]) -> Vec<u8> {
++    let mut seg = segment(seq, ack, flags, data);
++    seg[..2].copy_from_slice(&syn[36..38]);
++    seg[2..4].copy_from_slice(&syn[34..36]);
++    seg
++}
++
++fn from_guest(nat: &mut Nat, seg: &[u8], now: u64) -> Vec<Vec<u8>> {
++    nat.tcp_in(&[2; 6], &[10, 0, 2, 15], &[10, 0, 2, 2], seg, now)
++}
++
++#[test]
++fn forward_specs_reject_nonloopback_and_invalid_ports() {
++    assert_eq!("18078:8077".parse::<HostForward>().unwrap(),
++        "127.0.0.1:18078:8077".parse::<HostForward>().unwrap());
++    for spec in ["0.0.0.0:18078:8077", "192.168.1.1:18078:8077", "localhost:18078:8077",
++                 "18078:0", "0:8077", "65536:8077", "18078:65536", "8077", "::1:18078:8077"] {
++        assert!(spec.parse::<HostForward>().is_err(), "accepted {spec}");
++    }
++    let mut nat = Nat::new(false);
++    assert!(nat.add_forward(&HostForward { bind: SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, 18078), guest_port: 8077 }).is_err());
++}
++
++#[test]
++fn forwarded_syn_handshake_payload_and_half_close_use_the_guest_stack() {
++    let (mut nat, mut host) = forwarded_nat(8077);
++    host.write_all(b"request").unwrap();
++    let frames = poll_ready(&mut nat, 0);
++    assert_eq!(frames.len(), 1); // queued host bytes cannot bypass the guest handshake
++    let syn = &frames[0];
++    assert_eq!(syn[47], SYN);
++    assert_eq!(&syn[..6], &[2; 6]);
++    assert_eq!(&syn[26..30], &[10, 0, 2, 2]);
++    assert_eq!(&syn[30..34], &[10, 0, 2, 15]);
++    assert_eq!(&syn[36..38], &8077u16.to_be_bytes());
++    assert_eq!(transport_checksum(&[10, 0, 2, 2], &[10, 0, 2, 15], 6, &syn[34..]), 0);
++    let isn = u32::from_be_bytes(syn[38..42].try_into().unwrap());
++    assert_eq!(nat.poll(RETRANSMIT_US), frames); // dropped SYN
++    assert!(from_guest(&mut nat, &forwarded_reply(syn, 9000, isn + 2, SYN | ACK, b"bad"), RETRANSMIT_US + 1).is_empty());
++    assert!(from_guest(&mut nat, &forwarded_reply(syn, 9000, isn + 1, ACK, b"bad"), RETRANSMIT_US + 2).is_empty());
++    assert!(nat.tcp[0].handshake_pending());
++    let reply = forwarded_reply(syn, 9000, isn + 1, SYN | ACK, &[]);
++    let ack = from_guest(&mut nat, &reply, RETRANSMIT_US + 3);
++    assert_eq!(ack.len(), 1);
++    assert_eq!(ack[0][47], ACK);
++    assert_eq!(u32::from_be_bytes(ack[0][42..46].try_into().unwrap()), 9001);
++    assert_eq!(from_guest(&mut nat, &reply, RETRANSMIT_US + 4), ack); // dropped final ACK
++    assert_eq!(nat.tcp_opened, 1);
++    let request = poll_ready(&mut nat, RETRANSMIT_US + 5);
++    assert_eq!(request.len(), 1);
++    assert_eq!(&request[0][54..], b"request");
++    assert_eq!(nat.poll(RETRANSMIT_US * 2 + 5), request); // lost request segment
++    let response = forwarded_reply(syn, 9001, isn + 8, ACK | FIN, b"response");
++    from_guest(&mut nat, &response, RETRANSMIT_US * 2 + 6);
++    from_guest(&mut nat, &response, RETRANSMIT_US * 2 + 7); // duplicate must not duplicate bytes
++    nat.poll(RETRANSMIT_US * 2 + 8);
++    let mut bytes = Vec::new();
++    host.read_to_end(&mut bytes).unwrap();
++    assert_eq!(bytes, b"response");
++    host.shutdown(std::net::Shutdown::Write).unwrap();
++    let fin = poll_ready(&mut nat, RETRANSMIT_US * 2 + 9);
++    assert_eq!(fin.len(), 1);
++    assert_eq!(fin[0][47], FIN | ACK);
++    assert_eq!(nat.poll(RETRANSMIT_US * 3 + 9), fin);
++    from_guest(&mut nat, &forwarded_reply(syn, 9010, isn + 9, ACK, &[]), RETRANSMIT_US * 3 + 10);
++    nat.poll(RETRANSMIT_US * 3 + 11);
++    assert!(matches!(nat.tcp[0].transport, Transport::TimeWait));
++    nat.poll(RETRANSMIT_US * 3 + 11 + TIME_WAIT_US);
++    assert!(nat.tcp.is_empty());
++}
++
++#[test]
++fn forwarded_refusal_and_handshake_timeout_release_host_sockets() {
++    for reset in [false, true] {
++        let (mut nat, mut host) = forwarded_nat(522);
++        let syn = poll_ready(&mut nat, 0).remove(0);
++        let isn = u32::from_be_bytes(syn[38..42].try_into().unwrap());
++        if reset {
++            from_guest(&mut nat, &forwarded_reply(&syn, 0, isn, RST | ACK, &[]), 1);
++            assert!(!nat.tcp[0].closed()); // a reset must acknowledge the SYN
++            from_guest(&mut nat, &forwarded_reply(&syn, 0, isn + 1, RST | ACK, &[]), 2);
++            nat.poll(3);
++        } else { nat.poll(INBOUND_HANDSHAKE_US); }
++        assert!(nat.tcp.is_empty());
++        assert_eq!(nat.tcp_refused, 1);
++        let mut byte = [0];
++        assert_eq!(host.read(&mut byte).unwrap(), 0);
++    }
++}
++
++#[test]
++fn established_forwarded_reset_and_idle_expiry_release_sockets() {
++    for reset in [false, true] {
++        let (mut nat, mut host) = forwarded_nat(522);
++        let syn = poll_ready(&mut nat, 0).remove(0);
++        let isn = u32::from_be_bytes(syn[38..42].try_into().unwrap());
++        from_guest(&mut nat, &forwarded_reply(&syn, 2000, isn + 1, SYN | ACK, &[]), 1);
++        if reset {
++            from_guest(&mut nat, &forwarded_reply(&syn, 2001, isn + 1, RST | ACK, &[]), 2);
++            nat.poll(3);
++        } else { nat.poll(IDLE_CLOSE_US + 1); }
++        assert!(nat.tcp.is_empty());
++        let mut byte = [0];
++        assert_eq!(host.read(&mut byte).unwrap(), 0);
++    }
++}
++
++#[test]
++fn forwarded_source_ports_do_not_alias_outbound_tuples() {
++    let (mut nat, _host) = forwarded_nat(8077);
++    let (socket, _outbound_host) = socket_pair();
++    let mut existing = flow();
++    existing.guest_port = 8077;
++    existing.dst_ip = [10, 0, 2, 2];
++    existing.dst_port = FIRST_FORWARD_PORT;
++    existing.transport = Transport::Connected(socket);
++    nat.tcp.push(existing);
++    let syn = poll_ready(&mut nat, 0).remove(0);
++    assert_eq!(u16::from_be_bytes(syn[34..36].try_into().unwrap()), FIRST_FORWARD_PORT + 1);
++    assert_eq!(nat.tcp.len(), 2);
++    let isn = u32::from_be_bytes(syn[38..42].try_into().unwrap());
++    from_guest(&mut nat, &forwarded_reply(&syn, 1000, isn + 1, SYN | ACK, &[]), 1);
++    assert_eq!(nat.tcp[0].guest_seq, 200);
++    assert_eq!(nat.tcp[1].guest_seq, 1001);
++}
++
++#[test]
++fn forwarded_connections_share_bounded_flow_limit_and_close_excess() {
++    let (mut nat, mut host) = forwarded_nat(8077);
++    let mut peers = Vec::new();
++    for port in 0..MAX_FLOWS {
++        let (socket, peer) = socket_pair();
++        peers.push(peer);
++        let mut existing = flow();
++        existing.guest_port = 30000 + port as u16;
++        existing.transport = Transport::Connected(socket);
++        nat.tcp.push(existing);
++    }
++    nat.poll(0);
++    assert_eq!(nat.tcp.len(), MAX_FLOWS);
++    assert_eq!(nat.tcp_refused, 1);
++    let mut byte = [0];
++    assert_eq!(host.read(&mut byte).unwrap(), 0);
++    for _ in 1..MAX_FORWARDS {
++        nat.add_forward(&HostForward { bind: SocketAddrV4::new(Ipv4Addr::LOCALHOST, 0), guest_port: 522 }).unwrap();
++    }
++    assert!(nat.add_forward(&HostForward { bind: SocketAddrV4::new(Ipv4Addr::LOCALHOST, 0), guest_port: 522 }).is_err());
++}
++
++#[test]
++fn virtual_network_learns_station_before_starting_forwarded_connections() {
++    let (mut nat, _host) = forwarded_nat(8077);
++    nat.guest = None;
++    let mut net = crate::net::VirtualNet::new(false);
++    net.nat = Some(nat);
++    assert!(net.poll(0).is_empty());
++    let packet = ethernet(&GATEWAY_MAC, &[2; 6], 0x0800,
++        &ip_packet(1, &[10, 0, 2, 15], &[10, 0, 2, 2], &[0; 8]));
++    net.handle(&packet, 1);
++    assert!(net.nat.as_ref().unwrap().guest.is_some());
++    let syn = poll_ready(net.nat.as_mut().unwrap(), 2);
++    assert_eq!(syn.len(), 1);
++    assert_eq!(syn[0][47], SYN);
++    assert_eq!(&syn[0][..6], &[2; 6]);
++}
+diff --git a/esp-soc/src/net.rs b/esp-soc/src/net.rs
+index f4567c6..86bb155 100644
+--- a/esp-soc/src/net.rs
++++ b/esp-soc/src/net.rs
+@@ -93,6 +93,9 @@ impl VirtualNet {
+         }
+         let mut sip = [0u8; 4]; sip.copy_from_slice(&p[12..16]);
+         let mut dip = [0u8; 4]; dip.copy_from_slice(&p[16..20]);
++        if sip == self.sta_ip {
++            if let Some(nat) = &mut self.nat { nat.observe_guest(*src, self.sta_ip, self.gw_ip); }
++        }
+         match proto {
+             17 if body.len() >= 8 && be16(&body[2..4]) == 67 => self.dhcp(&body[8..], src),
+             // with NAT the flow goes out through a host socket; DNS is redirected to the host's own
+@@ -161,7 +164,10 @@ impl VirtualNet {
+         udp.extend_from_slice(&((8 + b.len()) as u16).to_be_bytes()); udp.extend_from_slice(&[0, 0]);   // checksum optional in IPv4
+         udp.extend_from_slice(&b);
+ 
+-        if reply_type == 5 { self.dhcp_acks += 1; }
++        if reply_type == 5 {
++            self.dhcp_acks += 1;
++            if let Some(nat) = &mut self.nat { nat.observe_guest(*src, self.sta_ip, self.gw_ip); }
++        }
+         if self.log { eprintln!("[net] DHCP {} -> {} for {}.{}.{}.{}", if msg_type == 1 { "DISCOVER" } else { "REQUEST" },
+                                 if reply_type == 2 { "OFFER" } else { "ACK" },
+                                 self.sta_ip[0], self.sta_ip[1], self.sta_ip[2], self.sta_ip[3]); }
+diff --git a/esp-soc/src/pins.rs b/esp-soc/src/pins.rs
+index 6ac742a..3db01e7 100644
+--- a/esp-soc/src/pins.rs
++++ b/esp-soc/src/pins.rs
+@@ -102,6 +102,13 @@ impl PinRoutes<'_> {
+                 });
+             }
+         }
++        // ESP-IDF 4.4 ESP32-S3 soc/spi_reg.h: SPI_SIO is USER bit 17.
++        // In three-wire mode the read phase uses the MOSI pad, independently
++        // of the normal MISO input matrix. The CoreS3 has one MOSI route.
++        if user & (1 << 17) != 0 && user & (1 << 28) != 0 {
++            let shared = outputs(signals[2], 1);
++            pins.miso = (shared != 0).then(|| shared.trailing_zeros() as u8);
++        }
+         pins
+     }
+ }
+diff --git a/esp32s3/src/board/mod.rs b/esp32s3/src/board/mod.rs
+index 3216221..06f5683 100644
+--- a/esp32s3/src/board/mod.rs
++++ b/esp32s3/src/board/mod.rs
+@@ -11,11 +11,13 @@
+ pub use esp_soc::board::{Board, BoardEdge, BoardModel, NoBoard, VirtualCycle};
+ 
+ pub mod atech14;
++pub mod cores3;
+ pub mod waveshare_amoled18;
+ pub mod waveshare_cam;
+ pub mod waveshare_lcd4b;
+ 
+ pub use atech14::*;
++pub use cores3::*;
+ pub use waveshare_amoled18::*;
+ pub use waveshare_cam::*;
+ pub use waveshare_lcd4b::*;
+@@ -25,6 +27,7 @@ pub fn make_board(name: &str) -> Option<Board> {
+     match name {
+         "atech14" | "atech" => Some(Box::new(Atech14::new())),
+         "none" | "bare" => Some(Box::new(NoBoard)),
++        "cores3-se" | "m5stack-cores3-se" | "cores3" => Some(Box::new(CoreS3::new())),
+         "waveshare-cam" | "waveshare" => Some(Box::new(WaveshareCam::new())),
+         "waveshare-lcd4b" | "lcd4b" => Some(Box::new(WaveshareLcd4b::new())),
+         "waveshare-amoled18-v2" | "amoled18-v2" => Some(Box::new(WaveshareAmoled18V2::new())),
+diff --git a/esp32s3/tests/pin_transport.rs b/esp32s3/tests/pin_transport.rs
+index b218458..8268903 100644
+--- a/esp32s3/tests/pin_transport.rs
++++ b/esp32s3/tests/pin_transport.rs
+@@ -343,3 +343,31 @@ fn legacy_gpio_callback_still_receives_only_level_changes() {
+     m.bus.write32(0x6000_4028, 16).unwrap();
+     assert_eq!(*changes.lock().unwrap(), [(4, true), (4, false)]);
+ }
++
++#[test]
++fn cores3_three_wire_receive_uses_the_shared_mosi_pad() {
++    let mut m = esp32s3::machine([0; 6]);
++    let state = Arc::new(Mutex::new(State::default()));
++    m.bus.board = Box::new(Board(state.clone()));
++    let bus = &mut m.bus;
++    for (pin, signal) in [(36u32, 101u32), (37, 103), (3, 256)] {
++        bus.write32(0x6000_9004 + 4 * pin, (1 << 12) | (1 << 9)).unwrap();
++        bus.write32(0x6000_4554 + 4 * pin, signal).unwrap();
++    }
++    bus.write32(0x6000_9004 + 4 * 35, (1 << 12) | (1 << 9)).unwrap();
++    bus.write32(0x6000_4154 + 4 * 102, 0x80 | 35).unwrap();
++    bus.write32(0x6000_4024, 1 << 3).unwrap();
++    bus.write32(0x6002_4020, 0x3f).unwrap();
++    for (sio, expected_miso) in [(true, 37u8), (false, 35u8)] {
++        // IDF 4.4 ESP32-S3 spi_reg.h: USER.SIO bit17; USER.USR_MISO bit28.
++        bus.write32(0x6002_4010, (1 << 28) | if sio { 1 << 17 } else { 0 }).unwrap();
++        bus.write32(0x6002_401c, 31).unwrap();
++        bus.write32(0x6002_4000, 1 << 24).unwrap();
++        bus.read32(0x6002_4098).unwrap();
++        let pins = state.lock().unwrap().routes.last().copied().unwrap();
++        assert_eq!(pins.sclk, 1 << 36);
++        assert_eq!(pins.mosi, 0); // A read has no active MOSI output phase.
++        assert_eq!(pins.miso, Some(expected_miso));
++        assert_ne!(pins.cs & (1 << 3), 0);
++    }
++}

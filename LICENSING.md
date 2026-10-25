@@ -42,17 +42,35 @@ and verbatim-copy terms, recorded in
 
 ## Firmware
 
-Project-authored firmware lives as a separate component and is licensed
-`GPL-2.0-or-later`. The RAM-only receiver in `firmware/nrf52840_rx/` follows
-that policy; the canonical GPL version 2 terms are in
+Project-authored firmware lives as separate components and is licensed
+`GPL-2.0-or-later`. The RAM-only receiver in `firmware/nrf52840_rx/` and the
+M5CoreS3 gateway in `firmware/esp32_gateway/`, including their project-authored
+tests and build files, follow that policy; documentation retains the separate
+documentation license above. The canonical GPL version 2 terms are in
 [LICENSES/GPL-2.0-or-later.txt](LICENSES/GPL-2.0-or-later.txt).
 This does not change the license of any library linked into a firmware image.
 
-RF24 is currently treated conservatively as `GPL-2.0-only`. Before releasing a
-linked firmware image, review the exact RF24 files and versions in the build,
-confirm license compatibility at file level, retain required notices, and
-provide corresponding source and build materials as required. Do not infer a
-firmware release license from the host software's AGPL license.
+The separate desktop emulator adaptation in
+`firmware/esp32_gateway/emulation/esp32sim/` is MIT-licensed, including its
+CoreS3 board model and patch to the pinned upstream emulator. It executes the
+firmware as a separate program. The upstream notice is retained in that
+directory's `LICENSE`; the downloaded emulator, toolchain and Espressif ROM
+files remain in ignored build directories under their own terms.
+
+The ESP32 gateway links Arduino-ESP32, M5Unified/M5GFX, Ethernet and ArduinoJson;
+their exact pins and file-level qualifications are recorded in its
+[dependency inventory](firmware/esp32_gateway/docs/dependencies.md). Apache-2.0
+components require using the project's later-version option for a GPLv3
+combined work, rather than assuming GPLv2 compatibility. A binary release also
+requires review of the actual linked SDK archives and runtime libraries,
+applicable notices, source availability, and corresponding-source/relinking
+materials. This repository has not completed that binary release audit.
+
+RF24 is not linked by either firmware component. It is currently treated
+conservatively as `GPL-2.0-only` for any future proposal to use it; review the
+exact files and combined-work compatibility before adding it. Do not infer a
+firmware release license from the host software's AGPL license or from a
+dependency's package-level label.
 
 ## External and reference material
 

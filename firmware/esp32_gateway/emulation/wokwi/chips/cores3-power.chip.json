@@ -1,0 +1,15 @@
+{
+  "name": "CoreS3 AXP2101 + AW9523B",
+  "author": "Christopher Spitler (GPL-2.0-or-later)",
+  "pins": [
+    "SDA",
+    "SCL",
+    "AW_INTN",
+    "TOUCH_INT",
+    "LCD_RESET",
+    "TOUCH_RESET",
+    "BUS_POWER",
+    "USB_POWER",
+    "BACKLIGHT"
+  ]
+}

@@ -24,5 +24,5 @@ if args.regenerate:
 run('kicad-cli','sch','erc','--exit-code-violations','--output',ROOT/'reports/schematic-erc.rpt',SCH)
 run('kicad-cli','pcb','drc','--format','json','--all-track-errors','--schematic-parity','--exit-code-violations','--output',ROOT/'reports/pcb-drc.json',PCB)
 script('verify_mechanics.py')
-script('export_manufacturing.py');script('draw_manufacturing.py');script('render_previews.py');script('verify_manufacturing.py')
+script('export_manufacturing.py');script('draw_manufacturing.py');script('draw_final_assembly.py');script('render_previews.py');script('verify_manufacturing.py')
 print('Hardware validation and manufacturing export complete.')

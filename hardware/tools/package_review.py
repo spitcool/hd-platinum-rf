@@ -7,7 +7,7 @@ import hashlib, zipfile
 ROOT=Path(__file__).resolve().parents[1];REPO=ROOT.parent
 archive=ROOT/'hd-platinum-carrier-rev-a-review.zip'
 def include(p):
-    return p.is_file() and p not in [archive,ROOT/'SHA256SUMS',ROOT/(archive.name+'.sha256')] and '__pycache__' not in p.parts and p.suffix not in ['.pyc','.kicad_prl','.lck']
+    return p.is_file() and p.name != '.DS_Store' and p not in [archive,ROOT/'SHA256SUMS',ROOT/(archive.name+'.sha256')] and '__pycache__' not in p.parts and p.suffix not in ['.pyc','.kicad_prl','.lck']
 files=sorted(p for p in ROOT.rglob('*') if include(p))
 sha=lambda p:hashlib.sha256(p.read_bytes()).hexdigest()
 (ROOT/'SHA256SUMS').write_text(''.join(f'{sha(p)}  {p.relative_to(ROOT)}\n' for p in files))

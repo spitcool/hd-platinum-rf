@@ -42,3 +42,21 @@ Review the regenerated PDFs and copper plots visually after any change. The
 automated checks do not establish solderability, mechanical fit, radio behavior,
 antenna performance or production readiness. Those checks are specified in
 `manufacturing/acceptance-test.md`.
+
+## Final appliance illustration
+
+To regenerate only the exploded assembly PDF, SVG and PNG preview without
+re-exporting the PCB manufacturing files:
+
+```sh
+docker run --rm -v "$PWD:/work" hd-platinum-hardware:local python3 hardware/tools/draw_final_assembly.py
+```
+
+The drawing uses the reference board outline and schematic case shapes. It
+does not replace the dimensioned CAD, physical fit check or enclosure drawing.
+The normal hardware build also generates it. After reviewing output changes,
+refresh the hardware review ZIP and checksums with:
+
+```sh
+python3 hardware/tools/package_review.py
+```

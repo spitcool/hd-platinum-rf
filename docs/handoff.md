@@ -268,7 +268,7 @@ packet and fake-backend tests pass, but emulator Jog movement and full
 new-identity enrollment remain unverified. Scene mutation and reset remain
 unsupported. The original app's observed 15-second Sync countdown is distinct
 from the backend's 18-second diagnostic RX window.
-See the [runtime commands](../README.md#bridge-emulator).
+See the [runtime commands](project-details.md#bridge-emulator).
 
 The mutable inventory store preserves opaque source records, requested-position
 overlays, and stable IDs in one atomic private state file. Known definitions are

@@ -10,7 +10,7 @@ This project depends on years of community investigation. The goal of this file 
 - The repository's Python code was written from the protocol facts and live observations documented here. No third-party implementation was copied into it.
 - Wire tokens, measured values, register settings, packet-field facts, and interoperability behavior are restated with attribution.
 - The unlicensed Arduino forum attachments are reference evidence only. They must not be copied, modified, or redistributed without permission from their authors.
-- GPL/AGPL works were inspected as research tools or comparison implementations only. No source from them is incorporated here.
+- GPL/AGPL protocol comparison implementations were inspected as research tools only. No source from them is copied into the project-authored implementations. Separately linked firmware dependencies are recorded below.
 - The separately scoped libbladeRF patch below incorporates a small upstream source diff under LGPL-2.1-or-later. The offline regression extracts user-supplied upstream functions with their original notices; those function bodies are not bundled here.
 - For any further code incorporation, add its exact version, copyright, license text, modifications, and required notices before merging it.
 
@@ -54,6 +54,26 @@ This project depends on years of community investigation. The goal of this file 
 - **Nordic Semiconductor — [nRF52840 product specification](https://docs.nordicsemi.com/r/bundle/ps_nrf52840)**. RADIO, TIMER, PPI, clock, memory and interrupt register facts support the independently authored RAM-only receiver. Silicon revision facts were cross-checked against [nrfx v3.0.0 errata definitions](https://github.com/NordicSemiconductor/nrfx/blob/v3.0.0/mdk/nrf52_erratas.h). No Nordic SDK, startup implementation or vendor firmware is included in the component.
 - **Arm and GNU toolchain contributors — [Arm GNU Toolchain](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads)**. The separate reference compiler is Arm GNU 14.3.Rel1 for macOS arm64, targeting `arm-none-eabi` (GCC 14.3.1). Its official archive SHA-256 is `30f4d08b219190a37cded6aa796f4549504902c53cfc3c7e044a8490b6eba1f7`. The freestanding receiver links no SDK or runtime library. Compiler binaries remain external and retain their own licenses.
 - **OpenOCD and libjaylink contributors — [OpenOCD](https://openocd.org/)**. OpenOCD 0.12.0 with bundled libjaylink 0.3.1 was built separately to prepare a J-Link/SWD host path. No programmer or library source/binary is distributed with the Python package or receiver component. Preparing tools does not establish target access, radio reception or successful RAM loading.
+
+## ESP32-S3 gateway firmware dependencies
+
+The [M5CoreS3 gateway](firmware/esp32_gateway/README.md) is independently
+authored C++ from the documented LAN and RF facts. It does not include the
+manufacturer's firmware, unlicensed forum sketches, or RF24. Its packet-radio
+driver uses an explicit SPI/register interface; its project-authored source,
+tests and build files follow the firmware `GPL-2.0-or-later` policy.
+
+- **M5Stack, lovyan03 and contributors — [M5Unified](https://github.com/m5stack/M5Unified/tree/0.2.7) 0.2.7 and [M5GFX](https://github.com/m5stack/M5GFX/tree/cc613d65f13a3a80021ef264a654e9e6a2419d8a) 0.2.8**, pinned to M5GFX commit `cc613d65f13a3a80021ef264a654e9e6a2419d8a`. Board/power initialization and display-bus release use their public APIs. Both have root MIT licenses; M5GFX also contains LovyanGFX, decoder and font notices with separate terms.
+- **Arduino Ethernet contributors — [Ethernet](https://github.com/arduino-libraries/Ethernet/tree/2.0.2) 2.0.2**. W5500 TCP/UDP and DHCP networking. Its README declares LGPL-2.1-or-later, while individual files include MIT, Apache-2.0, public-domain notices, and a GPL-2.0/LGPL-2.1 choice. **Benoit Blanchon — [ArduinoJson](https://github.com/bblanchon/ArduinoJson/tree/v7.4.2) 7.4.2**, MIT, supplies HTTP JSON encoding/decoding.
+- **PlatformIO and Espressif contributors**. PlatformIO Core 6.1.18, Espressif32 platform 6.12.0, and Arduino-ESP32 2.0.17 provide the build and runtime framework. The resolved Arduino package is `3.20017.241212+sha.dcc1105b`, with ESP-IDF 4.4.7 version macros and Espressif GCC 8.4.0 (`2021r2-patch5`). Framework sources, precompiled SDK archives, and runtime libraries retain their own terms; the package-level LGPL label is not a complete combined-image license.
+- **Joakim Eriksson, Alice, Mattia Fiumara and contributors — [esp32sim](https://github.com/mikroverk/esp32sim/tree/964c26c1a6dac335e849195d2cabc15c713015a3)**. The MIT-licensed instruction emulator runs the ESP32-S3 image in the desktop environment. The local adaptation adds a CoreS3 SE board model, three-wire SPI read routing, paced serial input, and inbound TCP forwarding. Its patch and board model are retained in `firmware/esp32_gateway/emulation/esp32sim/`; the macOS window displays the emulated LCD framebuffer and injects touch contacts.
+- **Wokwi / CodeMagic and contributors**. The optional Wokwi configuration uses the licensed VS Code simulator and a locally compiled AXP2101/AW9523 custom chip. The stock CoreS3 board's missing touch wiring remains a limitation; original custom-board artwork and an experimental corrected definition are included separately. Wokwi itself is not bundled.
+
+Exact resolved packages, inspected file-level notices, and remaining binary
+release-review work are recorded in the
+[dependency inventory](firmware/esp32_gateway/docs/dependencies.md). Downloaded
+dependencies remain outside tracked source; linked firmware includes dependency
+code and requires the corresponding notices/source review before distribution.
 
 ## Optional IQ-analysis dependencies
 

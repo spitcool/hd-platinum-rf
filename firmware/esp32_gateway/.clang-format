@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Christopher Spitler
+# SPDX-License-Identifier: GPL-2.0-or-later
+BasedOnStyle: Google
+ColumnLimit: 100
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: Empty

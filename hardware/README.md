@@ -26,6 +26,11 @@ interoperability and the ESP32 firmware remain qualification work. See the
 
 ## Appliance architecture
 
+The [final assembly drawing](manufacturing/final-assembly.pdf) shows the
+exploded stack, assembled enclosure and a cutaway of the M032 radio layer.
+See the [illustrated assembly guide](manufacturing/final-assembly.md) for the
+part list and sequence, or open the [SVG](manufacturing/final-assembly.svg).
+
 ```text
 M5Stack CoreS3 SE K128-SE
   ESP32-S3: application, touchscreen, TCP and HTTP services
@@ -77,6 +82,7 @@ the source for future revisions.
 
 | Document | Purpose |
 | --- | --- |
+| [Final assembly drawing and guide](manufacturing/final-assembly.md) | M5Stack stack order, carrier location inside M032, antenna and cable arrangement |
 | [Fabrication specification](manufacturing/fabrication.md) | Board construction, RF geometry, drill and DFM requirements |
 | [Assembly instructions](manufacturing/assembly.md) | Component handling, orientation, stack assembly and coax installation |
 | [Supplier checklist](manufacturing/order-checklist.md) | Quote scope, sourcing, deliverables and release gates |

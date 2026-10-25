@@ -4,7 +4,7 @@
 # Local Platinum shade-control prototype
 
 For the combined original-Platinum TCP interface, HTTP controls, discovery, and
-the exercised 250 kbps RF backend, use [`bridge-emulate`](../README.md#bridge-emulator).
+the exercised 250 kbps RF backend, use [`bridge-emulate`](project-details.md#bridge-emulator).
 This page also documents the older `bridge-serve` command and its separate
 2 Mbps experimental backend; its RF validation status must not be confused
 with the observed 250 kbps shade responses. Original-app control and an
@@ -50,7 +50,7 @@ counts, and the transmit envelope remain synthesis assumptions. See the
 ## Install and create a private configuration
 
 From the repository root, activate the virtual environment described in the
-[README](../README.md#research-cli), then install the analysis dependencies:
+[research CLI setup](project-details.md#research-cli), then install the analysis dependencies:
 
 ```sh
 python -m pip install -e '.[analysis]'

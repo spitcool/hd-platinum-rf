@@ -3,17 +3,90 @@
 
 # Next tests toward complete Platinum RF control
 
-The next decisive test is **one native Jog of an already paired shade**, with
-the operator watching. Unattended tests established reception of synthesized
-native packets on all three frequencies. They have not established shade
-acceptance. Preserve the existing binding for this comparison; new enrollment
-would introduce another unknown.
+**One watched native Jog of an already paired shade succeeded on 2026-10-25**,
+with the original bridge and all repeaters off. The operator observed the
+intended shade jog and no other shade move. This establishes one direct-native
+acceptance result; repeatability remains unproven. Preserve that binding for
+the next comparisons. The native primary-position scheduler and written-IQ
+checks are complete. A fictional position train passed independent RF reception,
+but the first watched raw-128 trial produced **no observed movement**, including
+no movement of another shade. An explicitly requested repeat after moving
+closer produced motion: the sole moving top rail lowered fully, changing the
+window from fully covered to fully exposed; no other shade moved. The bottom
+rail is fixed. **This is an observed native motion response, not intermediate-
+position accuracy or a half-travel result.** Subsequent watched feature-4
+requests established two endpoint responses on this same single-controllable-
+top-rail shade: raw 255 raised the top rail to cover the window, and raw 0
+lowered it to expose the window. Neither moved another shade.
 
-The operator asked to be consulted before tests requiring movement observation,
-button presses or wiring changes and is away for the night. No such test is
-queued. Offline analysis, software checks and preparation can continue. Named
-targets, installation identities, artifacts and exact resume state belong in
-the ignored private handoff.
+Tests requiring movement observation, button presses or wiring changes need
+current operator readiness. The native position trials and their RF audits
+are complete. An original-app comparison captured initialization and inventory
+traffic but no position/release request despite the reported slider gesture.
+Its continuous RF recording yielded no decoded Platinum packets. After a full
+app restart and a fresh connection, the app's "bottom rail" control sent
+feature 4/value 134 and moved the physical
+top rail roughly halfway; its feature-18/value-126 "middle rail" action had
+no reported effect. Both commands arrived after that RF window ended.
+A subsequent feature-4/value-191 request and release occurred inside a
+continuous **60-second recording** and moved the same top rail from roughly
+halfway to roughly three-quarters covered, with no other shade moving.
+The command-window searches recovered **no CRC-valid native 2 Mbps or
+2440 MHz / 250 kbps packets** for that raw-191 transaction. A later narrow
+2452 MHz capture accompanied a feature-4/value-127 request and another
+roughly-halfway result. It recovered **63 native packets** whose command and
+followup bodies match the primary-position planner. Sparse reception leaves
+the complete phase timing and packet counts unmeasured. Improve independent
+reception before changing native encoding or timing, or attributing the
+raw-128 result to a specific cause. Named targets, installation identities,
+artifacts and exact resume state belong in the ignored private handoff.
+
+The primary planner matched all **1,374 original-code packet events** across
+18 cases. All **9,000 packets** in each full fictional and existing-target
+written waveform independently decoded with correct bodies and CRCs. The full
+local **356-test suite** and package build passed. Five finite position trials
+then used the matched transport and fresh fixed-channel receiver sessions:
+
+| Position trial | Exact CRC-valid / expected at 2452 MHz | Bad CRC | Absent records | Result |
+| --- | ---: | ---: | ---: | --- |
+| Fictional identity, raw 128 | 2,839 / 3,000 | 60 | 101 | First and last expected packets received; no physical target claim |
+| Existing binding, raw 128 | 2,753 / 3,000 | 9 | 238 | Operator observed no movement and no other shade moving |
+| Requested raw-128 repeat after moving closer | 2,703 / 3,000 | 60 aligned + 1 unassigned | 237 | Moving top rail lowered fully, exposing the window; no other shade moved |
+| Existing binding, raw 255 | 2,916 / 3,000 | 17 aligned + 1 unassigned | 67 | Top rail rose fully, covering the window; no other shade moved |
+| Existing binding, raw 0 | 2,666 / 3,000 | 71 aligned + 1 unassigned | 263 | Top rail lowered fully, exposing the window; no other shade moved |
+
+All five recordings had no buffer drops. Unassigned bad-CRC records
+did not align with the expected schedule and are excluded from slot counts.
+The raw-0 recording has two possible absolute schedule offsets, one channel
+slot apart; its packet totals and relative timing agree under both.
+Independent reception establishes
+the transmitted packets, not acceptance by the shade. The first real-target
+negative observation is retained separately from the repeat's endpoint motion. See the
+[position conformance record](protocol-conformance.md#native-primary-position-trials).
+
+Preparation resumed on **2026-10-25**. The exact existing-target Jog waveform
+has been generated and all **9,000 written packets** independently decoded,
+with correct bodies and CRCs and **3,000 packets per channel**. The unchanged
+planner also reproduced the previously receiver-tested fictional waveform byte
+for byte. Initial channel, alternation state and phase counts remain the
+explicit assumptions below.
+
+Two existing-target attempts retained identical IQ and RF settings, each with
+a fresh receiver session and its own consumed-attempt receipt:
+
+| Attempt | Exact CRC-valid / expected at 2452 MHz | Bad CRC | Absent records | Physical observation |
+| --- | ---: | ---: | ---: | --- |
+| First | 584 / 3,000 | 572 | 1,844 | Missed; result unknown |
+| Explicitly requested repeat | 2,662 / 3,000 | 177 | 161 | Intended shade jogged; no other shade moved |
+
+Both recordings include held and tail phases with unique schedule alignment.
+The successful trial recovered the first and last expected channel packets;
+its fitted same-channel interval was **601.496209 microseconds**, with maximum
+timing residual **0.597 microseconds**. Reception has gaps, and its variation
+between attempts has no established cause. All radio sessions closed; the DK
+finished and halted with no buffer drops. Saved bindings, grants and the
+repeater-route sequence remained unchanged. See the
+[watched-trial record](protocol-conformance.md#watched-existing-binding-native-jog).
 
 The [conformance report](protocol-conformance.md#matched-firmware-comparison)
 contains the measurements. The working comparison used a private patched
@@ -42,10 +115,10 @@ implementation tested here.
 
 | Transaction family | Evidence available | Remaining validation |
 | --- | --- | --- |
-| Jog / identify, feature 12 | Original builders and captures; fictional native train received on all three channels | Existing shade acceptance, repeatability, public backend integration |
-| Primary position, feature 04 | Original bodies; observed app-driven movement through 2440 MHz route | Native hopping position scheduler; repeatability by route, target and product |
+| Jog / identify, feature 12 | Original builders and captures; fictional native train received on all three channels; one watched existing-binding direct-native success | Repeatability, additional targets/products, public backend integration |
+| Primary position, feature 04 | Original scheduler matched across 18 cases/1,374 events; written IQ and independent RF reception; direct raw-255/raw-0 endpoints; original-app raw-134/raw-191 intermediate observations on a single moving top rail | First direct raw-128 trial had no movement; repeat opened fully. Recover the successful original action's RF for comparison, then establish direct intermediate behavior, repeatability and other targets/products |
 | Sync / enrollment, feature 01 | Original bodies; existing-target resync observed | Full native enrollment train, fresh binding, cancellation and subsequent control |
-| Secondary rail, feature 18 | APK product/control mapping | Original RF encoding/schedule and physical rail behavior |
+| Secondary rail, decimal feature 18 (`0x12`) | APK mapping; original held/followup bodies `0x6D`/`0x32`; 48 builder rows and 18 scheduler cases/1,374 events | Offline public planner/written IQ, independent RF reception and physical rail behavior; no secondary control enabled |
 | Vane / opposing tilt, features 07 and 19 | APK/client mappings | Exact values, original RF encoding and physical behavior |
 | Feature 10 / preset / stop | Conflicting client interpretations | Determine behavior on the relevant product before implementation |
 | Handheld up/down and button release | Captured native bodies and original-code checks | Hopping schedule, held/release behavior and group selection |
@@ -57,36 +130,59 @@ The 25-entry [product catalog](../src/hd_platinum/products.py) describes app
 metadata. It does not qualify all products or their RF features. Mark hardware
 that is unavailable for observation as untested.
 
-1. **Freeze the transport and prepare the exact existing-target test.**
+1. **Preserve the matched transport and reviewed position inputs.**
    Preserve image/library hashes, original flash backup, update receipts and
    receiver reports. Recheck matched versions on the next opening, including
    after power cycling: the FPGA is in RAM and needs the verified 0.16.0 image
-   again. Do not reuse an old FPGA fallback. Generate a native Jog waveform for
-   the exact saved identity and one-hot mask. Compare its main, alternate and
-   tail bodies with the successful original reference, then independently
-   decode the full written IQ. Preserve the tested shaping and channel rotation.
-   Initial channel, alternation state and phase packet counts remain explicit
-   assumptions. If saved Jog permission is disabled, use an explicit one-shot
-   grant for that target; a Sync grant or product code does not authorize Jog.
+   again. Do not reuse an old FPGA fallback. The position waveforms are already
+   generated and fully decoded. Preserve their tested shaping, channel rotation,
+   exact target binding and raw value. Initial channel and phase packet counts
+   remain explicit assumptions. Use a fresh consumed-attempt receipt and bounded
+   receiver session for each explicitly requested trial. A Sync or Jog grant
+   does not authorize position control; a temporary position grant must not
+   change saved permissions.
 
-2. **Observe one existing-binding native Jog.**
-   Ask whether the operator is ready, then confirm the target and topology.
-   To establish direct-to-shade operation, the original bridge and repeaters
-   must be off; changing their power requires the operator. Retain the reviewed
-   antenna arrangement unless a change is needed and confirmed. Send one bounded
-   Jog while the DK records expected packets. Record whether the intended shade
-   jogged and whether another shade moved. Success needs both correct RF and
-   the physical observation. Do not automatically repeat a failed trial. If a
-   fresh original-bridge control also fails on the existing binding, resolve
-   that baseline before blaming the emulator: original success has previously
-   been intermittent.
+2. **Resolve the raw-value response on the observed top-down shade.**
+   The first raw-128 trial had correct independently received packets but no
+   observed movement. Its explicitly requested repeat after moving closer
+   lowered the sole moving top rail from fully covered to fully exposed.
+   Raw 128 therefore has not demonstrated an intermediate position. The fixed
+   bottom rail and moving top rail are physical observations; the saved product
+   code's dual-slider UI does not override them. Raw 255 subsequently covered
+   the window and raw 0 exposed it. Original-app transactions now establish
+   feature 4/value 134 with roughly halfway coverage and feature 4/value 191
+   with roughly three-quarters coverage. The app calls that control "bottom
+   rail"; the actual moving rail is the top rail. Its feature-18/value-126
+   "middle rail" request produced no observed movement. The operator also
+   reports intermediate control with the handheld/wall control.
+   The raw-191 request and release fell inside a continuous 60-second capture,
+   but bounded native and 250 kbps searches recovered no source packets.
+   A subsequent narrow 2452 MHz recording, with the receive pad removed and
+   DC block retained, captured an original-app feature-4/value-127 request
+   and roughly-halfway coverage. Blind decoding recovered 63 native packets:
+   three command bodies and 60 followup bodies, all retaining raw 127 and
+   matching the reviewed primary-position planner. Reception remains too
+   sparse to establish the command phase's onset, total counts or complete
+   schedule; only one channel was recorded. Improve independent reception
+   before changing the transmission timing. Neither these matching bytes nor
+   retained decoder controls explain the direct raw-128 endpoint response.
+   Do not change value encoding or room metadata from that observation alone.
+   Confirm readiness, target and topology before each bounded trial; for a
+   direct-to-shade claim, the original bridge and repeaters must be off. Record
+   moving-rail direction, final coverage and unrelated shade motion. Raw 128 is
+   near the middle of the byte range, not a guarantee of half travel. Endpoint
+   responses do not establish the intermediate mapping or repeatability.
+   Preserve each negative result and never hide it with automatic retries.
+   If a fresh original-bridge control also fails on the binding, resolve that
+   baseline before attributing the result to the emulator.
 
-3. **Validate primary position and distinguish the two RF routes.**
-   Implement a native position event planner with original per-packet hopping
-   across command/followup phases; do not substitute the older sequential
-   backend. Check original-code vectors, written IQ and independent reception
-   before a watched trial. On a proven target, test an intermediate position
-   and endpoints with that product's observed direction and rail meaning.
+3. **Establish repeatability and distinguish the two RF routes.**
+   Native Jog has one watched success; its first attempt's observation was
+   missed, so that attempt is neither another success nor a failure. Retain
+   individual watched Jog and position outcomes as separate repeatability
+   evidence. Correct RF plus the physical observation are both required.
+   Do not substitute the older sequential-channel native backend for the
+   reviewed per-packet hopping plan.
    Separately regress the app's TCP 522 → 250 kbps → repeater route after the
    firmware update, with one repeater on and original bridge off, recording
    later native output. A repeater LED or matching later 2440 MHz packet does
@@ -115,10 +211,21 @@ that is unavailable for observation as untested.
    insufficient. Enrollment need not wait for every secondary product family.
 
 5. **Add product-specific controls from original evidence.**
-   Begin with available hardware: feature 18 applies to product codes 2, 13 and
-   25; features 7/19 to 6 and 8; feature 7 also to 9 and 10. Capture the original
-   app feature/value request, execute its original RF builder and compare
-   transmitted phases. Keep raw features separate from composite UI sliders.
+   Decimal feature 18 (`0x12`) applies to product codes 2, 13 and 25. Its original
+   builder and bounded scheduler now establish held code `0x6D`, followup code
+   `0x32` and unchanged requested values 0/128/255. In the tested native context
+   with the queue-mode bit clear, it shares primary position's fixed phase
+   bodies and per-packet channel rotation, without Jog alternation or periodic
+   refresh. Exact phase packet counts and physical rail behavior remain unproven.
+   Review the shared offline planner design before adding secondary synthesis;
+   preserve primary APIs and grants. No secondary transmitter or permission is
+   enabled. The app labels primary as bottom rail and secondary as middle/top-down,
+   but that static mapping does not establish the installed mechanism. The
+   operator identifies the current target as top-down-only with a fixed bottom
+   rail; it must not be described as a physically dual-rail shade.
+   Features 7/19 apply to products 6 and 8; feature 7 also to 9 and 10. Capture
+   each original app feature/value request, execute its RF builder and compare
+   phases. Keep raw features separate from composite UI sliders.
    Validate intermediate values, endpoints, direction and rail/vane interactions
    before enabling each feature. Feature 10 has conflicting preset/stop
    interpretations and must not become a generic emergency stop. LAN `$rls`
@@ -161,7 +268,14 @@ that is unavailable for observation as untested.
    Run the full local suite and package build before pushing implementation
    changes. Keep private identities, original firmware and raw RF outside Git.
 
-The first session back should cover the existing-binding Jog comparison and,
-if successful, a small primary-position comparison. Enrollment and remaining
-features are subsequent controlled sessions, not a long unattended sequence
-of shade commands.
+The existing-binding Jog milestone has one observed success. Native position
+has completed source, written-IQ and fictional RF checks, but its first watched
+raw-128 trial had no movement. The requested repeat produced full opening on a
+top-down-only shade, not a demonstrated intermediate position. Raw 255 and raw 0
+then produced covered and exposed endpoints. Original-app primary requests
+have now produced intermediate observations at raw 134, 191 and 127. The latest
+narrow raw-127 capture recovered matching native command/followup bodies, but
+its sparse reception does not establish the complete original schedule. The
+next comparison requires better reception to measure phase timing and counts.
+Enrollment and remaining features belong in subsequent controlled sessions,
+not an unattended command sequence.

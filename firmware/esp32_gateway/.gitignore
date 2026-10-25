@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Christopher Spitler
+# SPDX-License-Identifier: GPL-2.0-or-later
+.pio/
+build/
+.native-build/
+include/gateway_config.h
+emulation/wokwi/chips/*.wasm
+emulation/wokwi/chips/wokwi-api.h

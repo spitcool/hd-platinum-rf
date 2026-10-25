@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "author": "Christopher Spitler",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "wokwi-custom-board",
+      "id": "core",
+      "top": 0,
+      "left": 0,
+      "attrs": {
+        "flashSize": "16",
+        "psramSize": "8",
+        "psramType": "quad",
+        "serialInterface": "USB_SERIAL_JTAG"
+      }
+    },
+    {
+      "type": "chip-cores3-power",
+      "id": "power",
+      "top": 160,
+      "left": 520,
+      "attrs": {}
+    }
+  ],
+  "connections": [
+    [
+      "power:SDA",
+      "core:G12",
+      "green"
+    ],
+    [
+      "power:SCL",
+      "core:G11",
+      "blue"
+    ],
+    [
+      "power:AW_INTN",
+      "core:AW_INTN",
+      "orange"
+    ],
+    [
+      "core:TOUCH_INT",
+      "power:TOUCH_INT",
+      "orange"
+    ],
+    [
+      "power:TOUCH_RESET",
+      "core:TOUCH_RESET",
+      "purple"
+    ],
+    [
+      "power:LCD_RESET",
+      "core:LCD_RESET",
+      "purple"
+    ],
+    [
+      "power:BACKLIGHT",
+      "core:BACKLIGHT",
+      "yellow"
+    ]
+  ]
+}

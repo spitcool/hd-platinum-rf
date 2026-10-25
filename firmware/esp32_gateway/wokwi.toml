@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: 2026 Christopher Spitler
+# SPDX-License-Identifier: GPL-2.0-or-later
+[wokwi]
+version = 1
+firmware = ".pio/build/cores3_wokwi/firmware.merged.bin"
+elf = ".pio/build/cores3_wokwi/firmware.elf"
+rfc2217ServerPort = 4000
+gdbServerPort = 3333
+
+[[net.forward]]
+from = "localhost:18078"
+to = "target:8077"
+
+[[net.forward]]
+from = "localhost:1522"
+to = "target:522"
+
+[[chip]]
+name = "cores3-power"
+binary = "emulation/wokwi/chips/cores3-power.chip.wasm"

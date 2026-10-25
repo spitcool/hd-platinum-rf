@@ -167,7 +167,7 @@ networking, configuration storage and the intended TCP/HTTP protocol handlers.
 
 Preserve these application behaviors from
 [bladerf_bridge.py](../../src/hd_platinum/bladerf_bridge.py) and the
-[emulator documentation](../../README.md#bridge-emulator):
+[emulator documentation](../../docs/project-details.md#bridge-emulator):
 
 - Reserve and durably commit each local ordinal before RF transmission;
   keep it consumed after an interruption or failure. Original firmware uses

@@ -5,6 +5,10 @@ SPDX-License-Identifier: CC-BY-SA-4.0 OR AGPL-3.0-or-later
 
 # Carrier and appliance assembly
 
+The [final assembly drawing](final-assembly.pdf) shows the three enclosure
+layers and the carrier's orientation inside M032. The
+[illustrated guide](final-assembly.md) identifies the parts and assembly sequence.
+
 Use the assembly BOM, placement file and drawings from the same board revision.
 Reference designators and pin-1 markers in the CAD control component orientation.
 Photographs of a different nRF24 module or another M5Stack carrier do not.
