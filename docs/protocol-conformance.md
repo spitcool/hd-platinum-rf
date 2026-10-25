@@ -191,3 +191,25 @@ Its supported combined streaming limit
 also excludes simultaneous 48 MS/s TX and RX. Those checks must not be bypassed
 to obtain a nominally complete capture. Independent RF verification remains
 necessary before qualifying this plan as a live direct-Jog backend.
+
+## Independent Nordic receiver preparation
+
+The separate [RAM-only nRF52840 receiver](../firmware/nrf52840_rx/README.md)
+provides a fixed-channel, receive-only packet check. It has no transmit or ACK
+path, and waits for an explicit host token before receiving. A bounded RAM log
+retains hardware CRC verdicts, received CRC values, payloads, RSSI, hardware
+timestamps and receiver rearm gaps. The first image accepts only its reviewed
+silicon revision; it does not silently apply settings to other revisions.
+
+`hd_platinum.nrf52840_capture` reads stopped capture dumps without opening a
+debugger or serial port. It cross-checks CRCs independently and reports schema,
+timing, counter, overflow and shutdown failures. Readable failed captures are
+retained for diagnosis. A zero-packet capture does not qualify reception, and
+default metadata excludes payloads, CRC values and factory words.
+
+The image builds and has passed host log tests, independent parser fixtures and
+ELF layout review. It has not yet been loaded onto a DK. Actual reception needs
+a known-good radio reference before judging the SDR signal. A second DK can
+provide that later positive control. One fixed-channel receiver cannot establish
+simultaneous three-channel reception, analogue signal quality or shade
+acceptance. No original bridge firmware is included in this receiver.

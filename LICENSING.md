@@ -33,9 +33,11 @@ and verbatim-copy terms, recorded in
 
 ## Firmware
 
-Future project-authored firmware must live as a separate component and be
-licensed `GPL-2.0-or-later`. That policy does not change the license of any
-library linked into a firmware image.
+Project-authored firmware lives as a separate component and is licensed
+`GPL-2.0-or-later`. The RAM-only receiver in `firmware/nrf52840_rx/` follows
+that policy; the canonical GPL version 2 terms are in
+[LICENSES/GPL-2.0-or-later.txt](LICENSES/GPL-2.0-or-later.txt).
+This does not change the license of any library linked into a firmware image.
 
 RF24 is currently treated conservatively as `GPL-2.0-only`. Before releasing a
 linked firmware image, review the exact RF24 files and versions in the build,
