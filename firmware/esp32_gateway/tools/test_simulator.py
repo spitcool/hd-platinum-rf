@@ -107,6 +107,55 @@ class SimulatorTests(unittest.TestCase):
         self.call("/sim/reset", {})
         self.assertEqual(self.call("/api/shades")[0], 200)
 
+    def test_control_history_distinguishes_the_latest_feature(self):
+        shades = self.call("/api/shades")[1]["shades"]
+        controls = lambda shade: {c["feature"]: c for c in shades[shade]["controls"]}
+        self.assertEqual(controls(0)[4]["open_value"], 255)
+        self.assertEqual(controls(4)[4]["open_value"], 0)
+        self.assertIn(18, controls(2))
+        primary = controls(2)[4]["requested_value"]
+        request = {"shade": 2, "feature": 18, "position": 96, "request_id": "secondary-0001"}
+        self.assertEqual(self.call("/api/positions", request)[0], 200)
+        state = self.settled()
+        actual = {c["feature"]: c for c in state["shades"][2]["controls"]}
+        self.assertEqual(actual[4]["requested_value"], primary)
+        self.assertEqual(actual[18]["requested_value"], 96)
+        self.assertEqual(state["shades"][2]["last_requested_feature"], 18)
+        self.assertEqual(actual[18]["request_status"], "latest")
+        self.assertEqual(actual[4]["request_status"], "earlier")
+        self.assertIsNone(state["shades"][2]["observed_position"])
+        self.assertEqual(self.call("/api/positions", {"shade": 2, "feature": 4,
+                         "position": 127, "request_id": "primary-after-secondary"})[0], 200)
+        state = self.settled()
+        self.assertEqual(state["shades"][2]["last_requested_feature"], 4)
+        actual = {c["feature"]: c for c in state["shades"][2]["controls"]}
+        self.assertEqual(actual[4]["request_status"], "latest")
+        self.assertEqual(actual[18]["request_status"], "earlier")
+
+    def test_top_down_and_room_endpoints_use_explicit_mapping(self):
+        request = {"shade": 4, "endpoint": "close", "request_id": "topdown-close-0001"}
+        self.assertEqual(self.call("/api/positions", request)[0], 200)
+        self.assertEqual(self.settled()["shades"][4]["position"], 255)
+        request = {"room": 2, "endpoint": "open", "request_id": "topdown-room-0001"}
+        self.assertEqual(self.call("/api/positions", request)[0], 200)
+        state = self.settled()
+        self.assertEqual([s["position"] for s in state["shades"] if s["room_id"] == 2], [0, 0])
+
+    def test_raw_tilt_and_invalid_or_ambiguous_position_requests(self):
+        request = {"shade": 6, "feature": 7, "position": 64, "request_id": "tilt-raw-0001"}
+        self.assertEqual(self.call("/api/positions", request)[0], 200)
+        self.settled()
+        for extra in ({"feature": -1}, {"feature": True}, {"feature": 12},
+                      {"position": -1}, {"position": True}, {"endpoint": "open"}, {"room": 0}):
+            bad = {"shade": 0, "position": 128, "request_id": "invalid-0001", **extra}
+            self.assertEqual(self.call("/api/positions", bad)[0], 400, bad)
+        self.assertEqual(self.call("/api/positions", {
+            "shade": 6, "feature": 7, "endpoint": "open", "request_id": "unknown-endpoint-0001"
+        })[0], 409)
+        self.assertEqual(self.call("/api/positions", {
+            "shade": 0, "feature": 18, "position": 128, "request_id": "unsupported-0001"
+        })[0], 409)
+
     def test_drag_and_cancel_do_not_dispatch(self):
         self.tap(60, 90)
         for down, x in [(True, 60), (True, 100), (False, 60)]:

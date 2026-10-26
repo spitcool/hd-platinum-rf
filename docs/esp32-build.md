@@ -10,10 +10,11 @@ It provides a touchscreen, local web interface and Platinum-compatible network
 services, with Wi-Fi or wired Ethernet builds. The planned appliance uses the
 CoreS3 SE and a custom radio carrier.
 
-**The project is currently confirming the RF protocols and designing the hardware
-implementation.** You can compile the firmware and try its simulated controls;
-the physical gateway still needs hardware and RF qualification. A successful
-build does not establish that it will operate your shades.
+**The CoreS3/NiceRF appliance is unassembled and unqualified.** The firmware
+implements the gateway services, feature-aware controls and a finite native
+radio candidate. You can build simulation and explicitly disarmed bench images,
+but no image has been flashed onto or tested with this stack. Successful SDR
+shade tests do not qualify the NiceRF hardware or establish full compatibility.
 
 ## Bill of materials
 
@@ -88,7 +89,9 @@ Edit `firmware/esp32_gateway/include/gateway_config.h`:
 | `GATEWAY_WIFI_SSID`, `GATEWAY_WIFI_PASSWORD` | Your Wi-Fi credentials, for the Wi-Fi build |
 | `GATEWAY_CLIENT_NETWORK`, `GATEWAY_CLIENT_MASK` | The trusted IPv4 subnet allowed to access either network build; replace the example with your own network |
 | `GATEWAY_API_TOKEN` | At least 32 random characters for the web interface and HTTP API |
-| `GATEWAY_RF_ENABLED`, `GATEWAY_RF_QUALIFIED` | Leave both `false` for initial development |
+| `GATEWAY_RF_ENABLED`, `GATEWAY_RF_QUALIFIED` | Leave both `false` for ordinary simulation builds |
+| `GATEWAY_RF_NATIVE`, `GATEWAY_RF_BENCH` | Default `false`; the dedicated native test environments select these explicitly |
+| `GATEWAY_RF_NATIVE_QUALIFIED_FEATURES` | Leave `0`; this is measured per-feature qualification, not a general enable switch |
 
 Generate a token locally with:
 
@@ -106,10 +109,12 @@ keep both on your trusted LAN.
 
 Choose the build for your network connection:
 
-| Environment | Connection |
+| Environment | Connection and default radio behavior |
 | --- | --- |
-| `cores3` | Wi-Fi |
-| `cores3_ethernet` | Base LAN v1.2 wired Ethernet |
+| `cores3` | Wi-Fi; simulation with the example configuration |
+| `cores3_ethernet` | Base LAN v1.2 Ethernet; simulation with the example configuration |
+| `cores3_native_test` | Wi-Fi; native bench candidate, boots disarmed, qualification mask forced to zero |
+| `cores3_ethernet_native_test` | Ethernet; same disarmed native bench candidate |
 
 Compile the Wi-Fi build:
 
@@ -117,8 +122,24 @@ Compile the Wi-Fi build:
 pio run -d firmware/esp32_gateway -e cores3
 ```
 
-Connect the CoreS3 to your computer with the USB data cable, then upload and
-open its serial monitor:
+To build the candidate images without uploading:
+
+```sh
+pio run -d firmware/esp32_gateway -e cores3_native_test -e cores3_ethernet_native_test
+python firmware/esp32_gateway/tools/test_native.py --sanitizers
+```
+
+Each environment writes `firmware.bin`, `firmware.elf` and a 16 MB
+`firmware.merged.bin` under `firmware/esp32_gateway/.pio/build/ENVIRONMENT/`.
+The post-build tool derives application offsets from the selected partition
+CSV and checks that individual upload inputs do not overlap NVS. Use the
+PlatformIO upload path for an existing installation; a full merged image is a
+complete flash image, not a promise to retain stored state. Export the private
+inventory before replacing an installation's flash.
+
+The following is the upload procedure for an available CoreS3 using the ordinary
+simulation image. It has not been performed on the unassembled appliance.
+Connect the board with a USB data cable, then upload and open its serial monitor:
 
 ```sh
 pio run -d firmware/esp32_gateway -e cores3 --target upload
@@ -148,21 +169,60 @@ before powering a newly assembled carrier.
    for a fictional room/shade example and the USB grant commands. New shades
    start with no operation grants, so controls remain disabled until granted.
 
-The touchscreen and web interface share the same inventory. Simulated actions
+The touchscreen and web interface share the same inventory and feature grants.
+Select a feature and a raw value; Open/Close requires a verified endpoint
+mapping. Raw 0/255 does not universally mean closed/open. Simulated actions
 update requested state without transmitting RF. Saved service settings override
 the build defaults; the USB command `services 1 1 1` restores TCP, HTTP and web
 access if they were disabled. See the
 [HTTP API guide](../firmware/esp32_gateway/docs/http-api.md) for integration details.
 
-## Before controlling real shades
+## Control mappings and stored state
 
-The ESP32 radio driver has not yet demonstrated shade interoperability on the
-physical stack. Complete the
-[hardware acceptance procedure](../hardware/manufacturing/acceptance-test.md)
-and [radio qualification procedure](../firmware/esp32_gateway/docs/radio-qualification.md)
-before enabling physical transmission. Use the wired build for RF qualification,
-validated installation bindings and grants, and the next unused RF sequence value.
-Do not set the qualified flag merely because compilation succeeds.
+USB `control SHADE FEATURE ROLE OPEN_VALUE` records a verified mapping for
+feature 4 or 18. Roles are 0 unknown, 1 lift, 2 top rail and 3 bottom rail.
+`OPEN_VALUE` is 0, 255 or 256 for unknown. This changes labels/direction without
+granting permission. Product metadata alone does not establish which physical
+rail moves. Feature 18 is decimal 18, not hexadecimal 18.
+
+The CRC-protected PGW1 database envelope now stores schema 3, including the
+latest requested feature separately from per-feature history. Schema-1 and
+schema-2 backups migrate; a single historical entry establishes the latest
+request, while multiple entries without chronology remain unknown. Schema-1
+physical mappings remain unknown. No requested value becomes measured feedback.
+Rebinding invalidates affected mappings, grants and request history. Inventory
+backup/import and repeater sequence allocation remain separate.
+
+## Native bench image and remaining RF work
+
+Complete the [hardware acceptance procedure](../hardware/manufacturing/acceptance-test.md)
+on the first assembled stack, then follow the
+[radio qualification procedure](../firmware/esp32_gateway/docs/radio-qualification.md).
+Prefer the wired candidate for initial RF tests. Its supported native candidates
+are primary feature 4, Jog feature 12 and secondary feature 18. Startup programs
+registers but emits no packet. Persisted shade grants alone cannot transmit:
+local USB `rf-test FEATURE_BITMASK` admits selected supported bits for at most
+60 seconds; `rf-test 0` disarms and cancels remaining work. It does not grant a
+shade, qualify a feature or replay failed work. `command LAN_TRANSACTION` sends
+one complete transaction through the same gated engine.
+
+The native planner uses five-byte bodies, per-packet 33/52/71 rotation and
+explicit 7,500/1,500 phase counts at nominal 200.5 µs slots. Native transmission
+has no repeater sequence requirement. The older 2440 MHz/250 kbps repeater route
+retains its separate ordinal reservation and qualification flags.
+
+The actual module's 2 Mbps, no-PCF framing and timing remain unproved.
+[Nordic's nRF24L01+ specification](https://www.sparkfun.com/datasheets/Wireless/Nordic/nRF24L01P_Product_Specification_1_0.pdf)
+only documents legacy no-PCF interoperability at 1 Mbps/250 kbps; this is an
+unresolved compatibility question, not proof of impossibility. Independently
+capture the NiceRF output before interpreting a submitted packet as the desired
+wire format. Physical shade response must then be qualified separately.
+
+Native Sync/enrollment is rejected pending a distinct longer train, cancellation
+and new-binding tests. Tilt features 7/19 and preset feature 10 remain simulation
+only. Handheld receive/feedback, complete enrollment and all installed product
+behaviors are not delivered by this image. Do not enable qualification bits
+merely because compilation or host tests pass.
 
 For firmware tests, simulators, implementation details and licensing, see the
 [firmware README](../firmware/esp32_gateway/README.md).

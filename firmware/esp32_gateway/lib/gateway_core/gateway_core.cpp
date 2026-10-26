@@ -11,8 +11,7 @@
 
 namespace platinum {
 namespace {
-constexpr uint32_t Features =
-    (1u << 1) | (1u << 4) | (1u << 7) | (1u << 10) | (1u << 12) | (1u << 18) | (1u << 19);
+constexpr uint32_t Features = KnownFeatureMask;
 std::string dec(unsigned n, unsigned width = 2) {
   char b[16];
   std::snprintf(b, sizeof b, "%0*u", int(width), n);
@@ -113,6 +112,7 @@ std::string scheduleRecord(const Schedule& s) {
          dec(s.minute) + "-";
 }
 void setPosition(Shade& shade, uint8_t f, uint8_t v) {
+  shade.last_requested_feature = f;
   for (auto& p : shade.requested)
     if (p.feature == f) {
       p.value = v;
@@ -196,10 +196,104 @@ bool productFeature(unsigned product, unsigned f) {
 }
 }  // namespace
 
+bool productSupportsFeature(uint8_t code, uint8_t f) {
+  return product(code) && feature(f) && productFeature(code, f);
+}
+uint32_t productFeatureMask(uint8_t code) {
+  uint32_t result = 0;
+  for (uint8_t f = 0; f < 32; ++f)
+    if (productSupportsFeature(code, f))
+      result |= 1u << f;
+  return result;
+}
+ControlMapping controlMapping(const Shade& shade, uint8_t f) {
+  for (const auto& mapping : shade.controls)
+    if (mapping.feature == f)
+      return mapping;
+  return {f, ControlRole::Unknown, EndpointMapping::Unknown};
+}
+std::string controlLabel(const Shade& shade, uint8_t f) {
+  if (f == 4 || f == 18) {
+    switch (controlMapping(shade, f).role) {
+      case ControlRole::Lift: return "Lift";
+      case ControlRole::TopRail: return "Top rail";
+      case ControlRole::BottomRail: return "Bottom rail";
+      case ControlRole::Unknown: break;
+    }
+    return f == 4 ? "Primary" : "Secondary";
+  }
+  if (f == 7) return "Tilt 7";
+  if (f == 19) return "Tilt 19";
+  if (f == 10) return "Preset";
+  if (f == 12) return "Jog";
+  if (f == 1) return "Sync";
+  return "Unknown";
+}
+bool endpointValue(const Shade& shade, uint8_t f, bool open, uint8_t& value) {
+  if (f != 4 && f != 18)
+    return false;
+  const auto endpoints = controlMapping(shade, f).endpoints;
+  if (endpoints != EndpointMapping::OpenAtZero && endpoints != EndpointMapping::OpenAt255)
+    return false;
+  value = (open == (endpoints == EndpointMapping::OpenAt255)) ? 255 : 0;
+  return true;
+}
+bool featureAvailable(const State& state, const Shade& shade, uint8_t f,
+                      uint32_t backend_features) {
+  return f < 32 && shade.room < state.rooms.size() &&
+         (shade.enabled_features & (1u << f)) && (backend_features & (1u << f)) &&
+         productSupportsFeature(state.rooms[shade.room].product, f);
+}
+const Position* lastRequestedPosition(const Shade& shade) {
+  if (!shade.last_requested_feature)
+    return nullptr;
+  for (const auto& position : shade.requested)
+    if (position.feature == *shade.last_requested_feature)
+      return &position;
+  return nullptr;
+}
+bool isLatestRequestedFeature(const Shade& shade, uint8_t feature) {
+  const auto* position = lastRequestedPosition(shade);
+  return position && position->feature == feature;
+}
+void clearRequestedHistory(Shade& shade) {
+  shade.requested.clear();
+  shade.last_requested_feature.reset();
+}
+namespace {
+std::string controlTransaction(const State& state, uint8_t target, bool room, uint8_t f,
+                               uint8_t value, bool mapped, bool open, uint32_t backend) {
+  if (!control(f) || (f == 10 && value != 7) ||
+      (room ? target >= state.rooms.size() : target >= state.shades.size()))
+    return {};
+  std::string result;
+  size_t count = 0;
+  for (const auto& shade : state.shades) {
+    if (room ? shade.room != target : shade.id != target)
+      continue;
+    uint8_t requested = value;
+    if (!featureAvailable(state, shade, f, backend) ||
+        (mapped && !endpointValue(shade, f, open, requested)))
+      return {};
+    result += "$pss" + dec(shade.id) + "-" + dec(f) + "-" + dec(requested, 3) + "-";
+    if (++count > MaxBatch || result.size() + 4 > MaxInput)
+      return {};
+  }
+  return count ? result + "$rls" : std::string{};
+}
+}  // namespace
+std::string rawControlTransaction(const State& state, uint8_t target, bool room,
+                                  uint8_t f, uint8_t value, uint32_t backend) {
+  return controlTransaction(state, target, room, f, value, false, false, backend);
+}
+std::string endpointTransaction(const State& state, uint8_t target, bool room,
+                                uint8_t f, bool open, uint32_t backend) {
+  return controlTransaction(state, target, room, f, 0, true, open, backend);
+}
 Engine::Engine(State initial, Hooks hooks)
     : state_(std::move(initial)), hooks_(std::move(hooks)), valid_(validate(state_)) {}
 bool Engine::validate(const State& s) {
-  if (snapshotBudget(s) > MaxSnapshotBytes || s.schema != 1 || s.rooms.size() > MaxRooms ||
+  if (snapshotBudget(s) > MaxSnapshotBytes || s.schema != 3 || s.rooms.size() > MaxRooms ||
       s.shades.size() > MaxShades || s.scenes.size() > MaxScenes ||
       s.schedules.size() > MaxSchedules || !name(s.title) || s.mac.size() != 12)
     return false;
@@ -228,6 +322,20 @@ bool Engine::validate(const State& s) {
       if (!control(p.feature) || (features & (1u << p.feature)))
         return false;
       features |= 1u << p.feature;
+    }
+    if (sh.last_requested_feature &&
+        (*sh.last_requested_feature >= 32 || !(features & (1u << *sh.last_requested_feature))))
+      return false;
+    if (sh.controls.size() > 2)
+      return false;
+    unsigned mapped = 0;
+    for (const auto& m : sh.controls) {
+      if ((m.feature != 4 && m.feature != 18) || (mapped & (1u << m.feature)) ||
+          !productSupportsFeature(s.rooms[sh.room].product, m.feature) ||
+          unsigned(m.role) > unsigned(ControlRole::BottomRail) ||
+          unsigned(m.endpoints) > unsigned(EndpointMapping::OpenAt255))
+        return false;
+      mapped |= 1u << m.feature;
     }
   }
   for (size_t i = 0; i < s.scenes.size(); ++i) {
@@ -282,8 +390,8 @@ std::vector<Record> Engine::snapshot() const {
     add(roomRecord(r));
   for (const auto& s : state_.shades) {
     add(shadeRecord(s));
-    for (const auto& p : s.requested)
-      add(cp(s.id, p.feature, p.value));
+    if (const auto* p = lastRequestedPosition(s))
+      add(cp(s.id, p->feature, p->value));
   }
   for (const auto& s : state_.scenes) {
     add(sceneRecord(s));
@@ -664,7 +772,6 @@ std::vector<Record> Engine::execute(Session& session, const std::string& op,
     s.room = uint8_t(n[0]);
     s.slot = uint8_t(slot);
     s.name = label;
-    s.requested.push_back({4, 0});
     next.shades.push_back(s);
     out = {{false, shadeRecord(s)}};
     structural = true;
@@ -674,8 +781,11 @@ std::vector<Record> Engine::execute(Session& session, const std::string& op,
     auto& r = next.rooms[n[0]];
     if (r.product != n[1]) {
       for (auto& s : next.shades)
-        if (s.room == r.id)
+        if (s.room == r.id) {
           s.enabled_features = 0;
+          s.controls.clear();
+          clearRequestedHistory(s);
+        }
       for (auto& sc : next.scenes)
         sc.positions.erase(std::remove_if(sc.positions.begin(), sc.positions.end(),
                                           [&](const ScenePosition& p) {
@@ -699,8 +809,8 @@ std::vector<Record> Engine::execute(Session& session, const std::string& op,
       s.room = uint8_t(n[1]);
       s.slot = uint8_t(slot);
       s.enabled_features = 0;
-      s.requested.clear();
-      s.requested.push_back({4, 0});
+      s.controls.clear();
+      clearRequestedHistory(s);
       for (auto& sc : next.scenes)
         sc.shades.erase(std::remove(sc.shades.begin(), sc.shades.end(), s.id), sc.shades.end());
     }

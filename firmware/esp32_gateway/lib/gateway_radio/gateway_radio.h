@@ -13,7 +13,11 @@
 namespace platinum {
 namespace radio {
 
-enum class Operation : uint8_t { Position, Sync, Jog };
+enum class Operation : uint8_t { Position, Sync, Jog, SecondaryPosition };
+enum class Route : uint8_t { BridgeRepeater, Native };
+// Bench is explicit permission to measure an unqualified module/profile. It is
+// not evidence of framing, shade acceptance, or physical position.
+enum class NativeAccess : uint8_t { Disabled, Bench, Qualified };
 enum class Recipe : uint8_t {
   // Preserve ESB by requesting an ACK, but allow zero hardware retransmissions.
   // Missing ACKs are expected in the reference broadcast use case.
@@ -36,7 +40,52 @@ struct Policy {
   bool qualified = false;
   uint8_t power = 0;  // RF2401F20 module level, never a bare-chip dBm claim.
   Recipe recipe = Recipe::EsbNoRetry;
+  Route route = Route::BridgeRepeater;
+  NativeAccess native_position = NativeAccess::Disabled;
+  NativeAccess native_jog = NativeAccess::Disabled;
+  NativeAccess native_secondary = NativeAccess::Disabled;
 };
+
+// No guessed initial channel or phase counts. The diagnostic model assumes an
+// idle phase-2 start, no prelude, and a nominal 200.5 us grid. These are explicit
+// software inputs, not a measurement of an original bridge's complete train.
+struct NativeSchedule {
+  uint8_t prior_channel = 0;
+  uint8_t prior_alternate = 0;
+  uint32_t command_frames = 0;
+  uint32_t followup_frames = 0;
+  uint16_t slot_half_us = 0;
+};
+constexpr uint16_t kNativeSlotHalfUs = 401;
+constexpr uint32_t kNativeMaxDurationHalfUs = 4000000;
+constexpr uint32_t kNativeSpiHz = 8000000;
+constexpr uint32_t kNativeLateLimitUs = 5;
+constexpr uint32_t kNativeFrameTimeoutUs = 190;
+
+enum class NativePhase : uint8_t { Command, Followup };
+struct NativeEvent {
+  std::array<uint8_t, 5> payload{};
+  uint32_t ordinal = 0;
+  uint32_t start_half_us = 0;
+  uint8_t channel = 0;
+  NativePhase phase = NativePhase::Command;
+};
+
+// Constant-memory, side-effect-free event iterator; Sync has no native plan.
+class NativePlan {
+ public:
+  bool begin(const Command& command, const NativeSchedule& schedule);
+  bool next(NativeEvent& event);
+  uint32_t frameCount() const { return count_; }
+  uint32_t durationHalfUs() const { return count_ * kNativeSlotHalfUs; }
+
+ private:
+  Command command_{};
+  NativeSchedule schedule_{};
+  uint32_t count_ = 0, ordinal_ = 0;
+  uint8_t channel_index_ = 0, alternate_ = 0, refresh_remaining_ = 0;
+};
+NativeAccess nativeAccess(const Policy& policy, Operation operation);
 
 struct Payload {
   std::array<uint8_t, 12> bytes{};
@@ -64,15 +113,19 @@ enum class ResultCode : uint8_t {
   RegisterMismatch,
   Busy,
   TimingMissed,
-  Timeout
+  Timeout,
+  BenchSubmitted,
+  Cancelled,
+  UnsupportedOperation
 };
 
 const char* resultName(ResultCode code);
 
 struct Result {
   ResultCode code = ResultCode::NotReady;
-  uint8_t frames_submitted = 0;
-  uint8_t missing_acks = 0;
+  uint32_t frames_submitted = 0;
+  uint32_t missing_acks = 0;
+  uint32_t max_lateness_us = 0;
 };
 
 // All methods are called by one radio-owner task, never from an IRQ. This narrow
@@ -86,6 +139,11 @@ class Io {
   virtual uint8_t transfer(uint8_t instruction, const uint8_t* tx, uint8_t* rx, size_t size) = 0;
   virtual uint32_t micros() = 0;
   virtual void delayUs(uint32_t duration) = 0;
+  // Own one fast SPI transaction throughout the finite native train. A port
+  // without this capability fails closed; slow startup/register tests stay at
+  // 1 MHz. This does not grant RF permission or imply electrical qualification.
+  virtual bool beginTimedBurst(uint32_t) { return false; }
+  virtual void endTimedBurst() {}
 };
 
 class Radio {
@@ -97,6 +155,11 @@ class Radio {
   // Reserve ordinal durably BEFORE calling this. Never retry/reuse it after
   // interruption or failure. A Submitted result is not proof of shade motion.
   Result transmit(const Command& command, uint16_t ordinal);
+  // Native packets contain no bridge transaction ordinal. Cancellation is
+  // checked before every CE and during waits; callbacks must be bounded and
+  // must not perform radio I/O. A started packet may finish after cancellation.
+  Result transmitNative(const Command& command, const NativeSchedule& schedule,
+                        bool (*cancel)(void*) = nullptr, void* context = nullptr);
   // Call before removing the carrier supply; returns GPIOs to high impedance.
   // Owner must serialize this with transmit (there are no concurrent callers).
   void shutdown();
@@ -109,6 +172,7 @@ class Radio {
   void write(uint8_t reg, uint8_t value);
   bool verify(uint8_t reg, uint8_t value);
   void clearAndFlush();
+  bool nativeRegistersMatch();
   Io& io_;
   Policy policy_{};
   bool initialized_ = false;
@@ -132,9 +196,12 @@ class ArduinoIo final : public Io {
   uint8_t transfer(uint8_t instruction, const uint8_t* tx, uint8_t* rx, size_t size) override;
   uint32_t micros() override;
   void delayUs(uint32_t duration) override;
+  bool beginTimedBurst(uint32_t spi_hz) override;
+  void endTimedBurst() override;
 
  private:
   SPIClass spi_;
+  bool timed_burst_ = false;
 };
 #endif
 

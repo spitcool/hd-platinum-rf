@@ -14,11 +14,17 @@ M5Unified drivers, FreeRTOS tasks, command engine and network stack execute
 inside the ESP32 instruction emulator. There is no HTML screen renderer or
 host implementation of gateway commands in this path.
 
-Choose **Shades** or **Groups**, select a row, then **Open** or **Close**.
-**Prev / Next** changes the list page. Six fictional shades in three rooms
-are imported through the actual USB console after boot. The local state is
-fresh on each process launch; the board's reset retains its current emulated
-flash. RF is disabled in this dedicated build.
+Choose **Shades** or **Groups**, select a row and feature, then adjust/apply a
+raw value or use the explicitly mapped Open/Close endpoints. **Prev / Next**
+changes the list page. Eight fictional shades in four rooms cover bottom-up,
+dual-rail, top-down and tilt controls. Their schema-3 inventory is imported
+through the actual USB console after boot. Role and endpoint mappings are
+explicit fictional installation facts, not assumptions from product codes.
+Raw 255 is not universally open; the top-down fixtures use raw 0 as open.
+
+The local state is fresh on each process launch; the board's reset retains its
+current emulated flash. RF is disabled in this dedicated build. All displayed
+values are requested state, not sensed motor positions or simulated mechanics.
 
 The same running firmware provides:
 
@@ -39,9 +45,10 @@ curl -H 'Authorization: Bearer wokwi-local-development-token-0001' \
   http://127.0.0.1:18080/api/shades
 ```
 
-The native window's USB console accepts the existing `status`, `export`,
-`grant` and `services` commands. `services 1 1 1` restores both network
-interfaces and the web page. Closing the native window or pressing Ctrl-C
+The native window's USB console accepts `status`, `export`, `import`, `grant`,
+`control`, `command` and `services`. `control` sets explicit role/direction
+mappings without changing grants; `command` processes a complete legacy
+transaction. `services 1 1 1` restores both network interfaces and the web page. Closing the native window or pressing Ctrl-C
 in the launcher terminates its emulator process. `--no-build` reuses the
 last build, `--build-only` prepares it without opening a window, and
 `--no-seed` starts with an empty inventory. `--headless --seconds 10` runs
@@ -64,13 +71,29 @@ The [retained board model and patch](../emulation/esp32sim/README.md) cover
 16 MB flash, 8 MB PSRAM, ILI9342C SPI, FT6336 touch, AXP2101 power registers,
 AW9523B GPIO/interrupt behavior, RTC register storage and virtual Wi-Fi.
 
-Actual compiled-firmware checks on 2026-10-25 verified ROM/bootloader startup,
-320×240 LCD output, shade and group Open/Close, second-page selection, and
-CRC-checked state exports after touch actions. HTTP authentication, repeated
+Earlier compiled-firmware checks on 2026-10-25, using the previous six-shade
+fixture, verified ROM/bootloader startup, 320×240 LCD output, primary shade/group
+Open/Close, second-page selection and CRC-checked exports after touch actions. HTTP authentication, repeated
 API requests, and fragmented TCP 522 requests on a persistent connection also
 passed. The adaptation has board, SPI transport, networking and CLI tests;
-the portable firmware has separate ASan/UBSan tests. Emulator timing is not
-evidence of real bus timing, analog power behavior or successful RF delivery.
+the portable firmware has separate ASan/UBSan tests.
+
+The later 2026-10-25 image with eight shades and four rooms passed all seven
+read-only network checks and seven control checks. The latter cover independent
+primary/secondary values, opposite endpoint directions, mapped room commands,
+raw tilt controls, feature-10 value 7, fragmented TCP staging/release, and
+rejection of incorrectly typed JSON without changing state. Requested values
+remain separate from `observed_position`, which stays null. Both suites are
+opt-in; the control suite mutates only the explicitly selected running instance:
+
+```sh
+python3 firmware/esp32_gateway/test/python/test_device_network.py --live
+python3 firmware/esp32_gateway/test/python/test_device_controls.py --emulator-loopback
+```
+
+Use the fictional emulator instance for the control suite, not a physical
+gateway. The verified run used its RF-disabled simulation build. Emulator
+timing is not evidence of real bus timing, analog power behavior or RF delivery.
 
 The RF transceiver, W5500 carrier, audio, analog rail dynamics and physical
 radio environment are not modeled. This environment exercises the Wi-Fi

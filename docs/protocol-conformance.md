@@ -9,8 +9,17 @@ native Jog succeeded. The first watched native primary raw-128 trial produced
 no movement; an explicitly requested repeat produced full opening on a
 top-down-only shade. Later raw-255 and raw-0 requests produced covered and
 exposed endpoints, respectively, with no other shade moving. The bottom rail
-is fixed; only the top rail is controllable. Direct-native intermediate-position
-accuracy remains unestablished. Original-app primary requests produced observed
+is fixed; only the top rail is controllable. A later direct raw-191 repeat at
+closer placement reached roughly three-quarters covered. An unchanged raw-128
+request from that position then produced no movement despite independent RF
+reception. After reconnecting the radios, an unchanged raw-127 request moved
+the shade from three-quarters to roughly halfway covered. Another raw-191
+request reached three-quarters, then raw 129 reached roughly halfway. The
+fourth raw-128 trial moved from the operator's 129 mark to the 128 mark with
+the original waveform, timing and gain unchanged. None moved another shade.
+This establishes one watched raw-128 intermediate success; earlier inconsistent
+outcomes remain unexplained. General mapping and repeatability remain unqualified.
+Original-app primary requests produced observed
 intermediate results at raw 134, 191 and 127. The earlier searches recovered no
 source RF for raw 134 or 191; a later narrow raw-127 capture recovered 63 native
 packets with bodies matching the primary-position planner. Its sparse reception
@@ -440,7 +449,7 @@ do not establish shade acceptance, direction, rail meaning or measured position.
 
 ### Native primary-position trials
 
-Five subsequent finite position trials retained the reviewed native shaping,
+The finite position trials below retained the reviewed native shaping,
 48 MS/s rate and matched firmware/library transport. Each waveform contained
 9,000 packets in 1.8045 seconds, with 3,000 expected on the independent DK's
 2452 MHz receive channel. Initial channel and the 7,500 command/1,500 followup
@@ -453,6 +462,12 @@ counts remained explicit assumptions; they were not newly measured timer totals.
 | Requested raw-128 repeat after moving closer | 2,703 | 60 aligned + 1 unassigned | 237 | Moving top rail lowered fully, exposing the window; no other shade moved |
 | Existing binding, raw 255 | 2,916 | 17 aligned + 1 unassigned | 67 | Top rail rose fully, covering the window; no other shade moved |
 | Existing binding, raw 0 | 2,666 | 71 aligned + 1 unassigned | 263 | Top rail lowered fully, exposing the window; no other shade moved |
+| Later raw-191 repeat after moving closer | 618 | 793 | 1,589 | Roughly three-quarters covered; no other shade moved |
+| Third raw-128 request, from three-quarters coverage | 2,711 | 141 aligned + 2 unassigned | 148 | No movement; no other shade moved |
+| Raw 127 after reconnecting, from three-quarters coverage | 1,008 | 866 aligned + 1 unassigned | 1,126 | Roughly halfway covered; no other shade moved |
+| Subsequent raw 191, from halfway coverage | 1,004 | 422 aligned + 2 unassigned | 1,574 | Roughly three-quarters covered; no other shade moved |
+| Raw 129, from three-quarters coverage | 2,787 | 137 | 76 | Roughly halfway covered; subsequently confirmed at the 129 mark; no other shade moved |
+| Fourth raw 128, from the 129 mark | 2,424 | 338 | 238 | Moved to the 128 mark; no other shade moved |
 
 The fictional trial recovered its first and last expected channel packets and
 completed with zero capture-buffer drops. The first watched existing-binding
@@ -486,6 +501,84 @@ receivers and unchanged saved state. Neither moved another shade. These are
 two observed endpoint responses on a shade with one controllable top rail and
 a fixed bottom rail; they do not qualify a dual-rail mechanism or establish
 intermediate positioning. No automatic retransmission occurred.
+
+A later raw-191 attempt was excluded from validation at the operator's request
+after a reported link-condition concern. Its consumed-attempt receipt was
+retained. The explicitly requested repeat after moving closer used the same
+waveform, gain and nominal timing, and reached roughly three-quarters covered
+with no other shade moving. Its 618 valid packets comprised 478 command and
+140 followup bodies. A unique alignment included the first and last expected
+channel slots; the fitted interval was 601.496078 microseconds with maximum
+valid residual 0.569 microseconds. Reception was incomplete. This is one
+observed direct intermediate result; the position immediately before that
+repeat was not freshly reported after the excluded attempt.
+
+The third raw-128 request reused the original raw-128 waveform at the same
+closer placement, starting from the now-observed three-quarters coverage.
+The operator reported that nothing moved. Independent reception recovered
+2,289 valid command bodies and 422 valid followup bodies, with unique alignment
+including the first and last expected channel slots. The fitted interval was
+601.496102 microseconds, with maximum valid residual 0.597 microseconds.
+Two bad-CRC records remain unassigned. This confirms over-the-air transmission
+of raw 128, not reception or acceptance by the shade.
+
+Both later captures reached the five-second deadline without receiver drops,
+partial packets or late END events. The transmitter closed with bias tees off;
+the DK ended halted with radio power and PPI disabled, and its programmer was
+reaped. Saved configuration, permissions and sequence were unchanged. No timing,
+power or value-encoding correction follows from these physical results.
+
+After reconnection, debug protection required one authorized DK recovery erase
+before loading the same receive-only firmware. The transmitter verified the
+matched firmware and FPGA versions again. With the original bridge and
+repeaters off and the close placement and protected receive wiring confirmed,
+one unchanged raw-127 request moved the top rail from roughly three-quarters
+to roughly halfway coverage; no other shade moved. Reception recovered 653
+valid command and 355 valid followup packets. Two compatible absolute offsets
+remain: first valid index 0 or 1 and last 2998 or 2999, with identical phase
+totals. The fitted interval was 601.496143 microseconds, maximum valid residual
+0.597 microseconds. One bad-CRC record remains unassigned. The complete
+five-second capture ended without drops, partial packets or late END events,
+with both sessions closed and saved state preserved.
+
+This is one direct raw-127 intermediate success with unchanged synthesis
+parameters. It does not establish that raw 128 is reserved or identify an
+encoding defect: the adjacent numeric values 127 and 128 differ in all eight
+value bits, and their CRCs also differ.
+
+A subsequent raw-191 request moved from the observed halfway position to
+roughly three-quarters coverage, giving a second watched intermediate result
+at that value. Reception recovered 674 valid command and 330 valid followup
+packets. Two absolute alignments remain possible: first valid index 1261 or
+1262 and last 2998 or 2999; neither establishes receipt of the first emitted
+packet. The fitted interval was 601.496150 microseconds, with maximum valid
+residual 0.606 microseconds. Two bad-CRC records remain unassigned.
+
+Raw 129 then moved from three-quarters to roughly halfway coverage. Reception
+recovered 2,306 valid command and 481 valid followup packets, uniquely aligned
+through the first and last expected slots. The fitted interval was
+601.496118 microseconds, with maximum valid residual 0.630 microseconds.
+Neither trial moved another shade. The operator subsequently confirmed the
+129 mark and explained that visible marks distinguish 127, 128 and 129.
+
+At the operator's request, a fourth raw-128 trial proceeded directly from that
+129 mark. It reused the exact original raw-128 IQ waveform, timing and gain;
+the original bridge and all repeaters remained off. The operator reported
+movement to the **128 mark**, with no other shade moving. Reception recovered
+2,006 valid command and 418 valid followup packets, uniquely aligned through
+the first and last expected slots. All 338 bad-CRC records aligned; 238 slots
+had no record. The fitted interval was 601.496123 microseconds, with maximum
+valid residual 0.609 microseconds. These last three captures each completed the
+five-second deadline with no buffer drops, partial packets or late END events.
+Each source closed, its receiver halted and programmer exited, and saved
+configuration, permissions and sequence remained unchanged.
+
+This is the first watched direct raw-128 intermediate success. The earlier
+no-motion and full-opening observations remain preserved and unexplained;
+one success does not establish repeatability or a cause for those outcomes.
+The proposed watched original-bridge comparison was not executed because the
+operator's requested synthetic repeat succeeded. Fine-mark comparisons can
+proceed without a three-quarters reset when the starting mark is observed.
 
 Raw 128 represents about 50.2% of the byte range, not calibrated half travel.
 The original Android app maps product 2's primary command to its bottom-rail
@@ -612,7 +705,77 @@ three-channel rotation. An initial lattice fit was rejected as unreliable.
 No byte-encoding discrepancy or timing correction follows from this capture,
 and the direct raw-128 full-opening result remains unresolved.
 
-### Source-only secondary-position contract
+### Original-bridge captures with an independent receiver
+
+A private receive-only Nordic firmware variant extended the capture limit
+from three to five seconds while retaining the 4,096-record buffer. Comparing
+the loaded images showed that only the duration-limit literal changed;
+instructions, RF settings, addresses and shutdown behavior were unchanged.
+The public three-second parser and historical artifacts were preserved.
+
+Two separately bounded original-bridge requests then captured primary values
+191 and 128 on native channel 52. Each used a fresh halted receiver image,
+fresh bridge identity and target-definition checks, one position stage and
+one release, and a separate consumed-attempt record. No SDR transmission was
+used. Both requests received matching bridge acknowledgments, but neither
+trial had a physical observer. Their requested positions are not measured
+shade positions.
+
+On returning, the operator reported that the shade was roughly halfway open.
+The last original-bridge request had been raw 128. This is a later observation
+of the current state, not a watched result for either unattended movement;
+intervening controls and other-shade motion were not established.
+
+| Original requested value | Valid command `0x50` | Valid followup `0x32` | CRC-bad records retained | Total records |
+| --- | ---: | ---: | ---: | ---: |
+| 191 | 453 | 96 | 1,120 | 1,669 |
+| 128 | 386 | 74 | 1,082 | 1,542 |
+
+Every CRC-valid packet matched the target, mask and unchanged requested byte;
+no unexpected valid body was recovered. Independent raw-record and CRC checks
+agreed. Both receivers reached their five-second deadline at timer count
+5,000,005, without capacity termination, buffer drops, partial packets or late
+END events. They ended halted with radio and PPI disabled, and the programmer
+and TCP connection closed. Saved emulator configuration, inventory, permissions
+and sequence remained unchanged.
+
+These finite windows still contain reception gaps and many CRC failures.
+They do not establish emitted packet totals or all-channel hopping. The last
+CRC-bad record in the raw-128 capture remains unassigned; it is not evidence
+of the target's followup ending. Action lifecycle replies buffered until after
+the receiver dump retain host-read timestamps, not RF event times.
+
+The matching raw-128 bytes provide a direct comparison with the earlier
+synthesized raw-128 trial, which opened the shade fully. They do not establish
+what the original raw-128 request did physically. Both original captures differ
+from the synthesized constant grid: their followup observations fit roughly
+600 microseconds between channel-52 visits, with local jitter, and held-command
+observations include approximately 200-microsecond local phase shifts.
+The synthesized receiver reference instead measured a stable approximately
+601.496-microsecond recurrence. Sparse reception and those phase shifts prevent
+a global fixed-grid or exact-count claim.
+
+Executing the original setting serializer established that `$set006-` reports
+the scheduler mode byte directly. All four retained before/after inventories
+reported that mode, whose periodic queue-refresh bit is clear. Original-code
+branch tests confirm that this mode does not perform the periodic payload
+refresh. A separate execution shows that three unserviced timer triggers leave
+one pending flag and produce one scheduler call when serviced. Delayed service
+can therefore combine opportunities, but neither its occurrence nor its cause
+was measured in these captures. The distinct prelude on active-timer entry
+does not itself explain repeated timing shifts during the held command.
+
+For the inferred C8051F34x hardware, the documented Timer 2 overflow behavior
+supports 401 counts from reload `0xFE6F`. At a nominal Timer 2 clock of
+48 MHz / 12, the source's one trigger per two overflows yields the existing
+200.5-microsecond assumption. It does not support replacing 401 with 400 as an
+off-by-one fix.
+The actual clock and service timing remain unmeasured; the generic instruction
+fixture is not cycle accurate. See the [C8051F34x datasheet, sections 14.5 and
+21.2](https://www.silabs.com/documents/public/data-sheets/C8051F34x.pdf).
+No timing or encoding correction is qualified by these findings.
+
+### Secondary-position source contract and offline synthesis
 
 The secondary feature is **decimal 18, hexadecimal `0x12`**, not `0x18`.
 Executing the original queue loader, classifiers and complete body builder
@@ -634,6 +797,224 @@ With flags 1, the original duration suffix supplies 150/30 ticks. Fixtures
 forced phase expiry after explicit artificial pulse counts, so they do not
 establish timer epochs or exact whole-command packet totals. Independent review
 checked all builder rows, events, source provenance and recorded pulse boundaries.
-Execution stopped before peripheral access. This is source-only evidence: no
-public secondary planner, waveform, transmitter, grant or physical rail result
-has been added. Primary APIs and live feature-4-only gates remain unchanged.
+Execution stopped before peripheral access. A further 16-row builder comparison
+confirmed raw 64 with primary and secondary features, two fictional identities,
+both phases and both prior alternate states.
+
+`hd_platinum.rf_native_secondary_position` now supplies a separate offline
+secondary plan and waveform API. Its 18 source scenarios reproduce all 1,374
+events. The primary public API and full 9,000-frame waveform remain byte-for-byte
+unchanged; primary writers reject the separate secondary plan type. Independent
+decoding checked all 9,000 packets in each of a fictional secondary waveform,
+an existing dual-rail target's primary-128 waveform and its secondary-64
+candidate. Those written-IQ checks establish encoding, not physical rail
+acceptance. No Python live backend or saved operation grant was widened.
+
+The dual-rail target's subsequent primary-128 trial was transmitted once:
+2,938 exact CRC-valid packets were received independently on channel 52, but
+the operator reported no movement from both rails at the top. Secondary-64
+remains untransmitted. Later original-app references establish the physical
+mapping separately: feature 4/raw 127 lowered only the bottom rail halfway;
+feature 18/raw 63 first lowered the bottom rail fully, then lowered the top rail
+roughly one-quarter. A subsequent bottom-rail request raised the top rail to
+the top before raising the bottom rail halfway. No other shade moved.
+
+The first reference yielded 1,810 distinct CRC-valid native packets (1,338 held
+`0x50`, 472 followup `0x32`); the secondary reference yielded 241 (38 held
+`0x6D`, 203 followup `0x32`). The secondary LAN trace contains exactly one
+feature-18 request and release, with no separate primary request; all accepted
+RF bodies belong to that secondary family. Reception gaps prevent an assertion
+about every emitted packet. Both recordings were continuous receive-only SDR
+captures, and all sessions closed cleanly. These observations do not explain
+the earlier synthetic no-motion result.
+
+The original bridge's post-secondary inventory contains only the latest
+feature-18/raw-63 `$cp` for this shade. The APK also stores one command/value
+and resets the companion rail graphic. Per-feature requested-value history
+must therefore not be emitted as several current `$cp` records: after a
+4→18→4 sequence, insertion order can otherwise make the app select stale
+feature 18. Preserve request history separately from the latest command and
+from physical position feedback. The coupled movement above does not authorize
+fabricating a companion acknowledgment or sending an additional RF command.
+
+The first direct-synthetic secondary trial used the original reference's exact
+raw value 63. The operator observed the same sequence: bottom fully down, then
+top roughly one-quarter down, with no other shade moving. The independent DK
+captured 2,990 valid packets (2,491 `0x6D` held and 499 `0x32` followup), three
+CRC-bad records and no unexpected valid body. Conditional channel-52 alignment
+was unique through indices 0–2999, with eight missing slots and one unassigned
+bad record. All 26 RF/lifecycle checks passed: one finite submission, a complete
+receiver deadline, clean shutdown and unchanged persisted grants/ordinal. This
+is one watched secondary acceptance result on the SDR, not NiceRF qualification.
+
+The matched synthetic primary/raw-127 reverse trial then produced no reported
+movement. Its independent recording contained 2,976 exact valid bodies (2,489
+held, 487 followup), three CRC-bad records and no unexpected valid bodies.
+Conditional alignment covered indices 0–2999 with 23 missing slots and two
+unassigned bad records. All 26 lifecycle/RF checks passed. This is a second
+synthetic-primary failure on the dual-rail target, alongside raw 128; preserve
+both negatives despite the successful original-primary and synthetic-secondary
+references. Neither the payload match nor nearby receiver success establishes
+why the motor did not respond.
+
+A further experimental primary-127 trial inserted a second identical packet
+into 170 of the 9,000 trigger slots, retaining the other timing and waveform
+settings. It also produced no movement. All 9,170 written packets decoded
+correctly; the DK received 2,990 valid first-member packets, but its rearm time
+prevents using missing second members as evidence of transmission loss. The
+experimental spacing of paired bursts is not a proven fix and is not part of
+the ESP32 implementation.
+
+The next original-bridge primary-127 reference again raised the top rail first,
+then raised the bottom rail to roughly halfway, with no other shade moving.
+Its six-second 48 MS/s recording retained all 288 million samples with zero
+metadata gaps, overruns or error-status blocks. Independent lifecycle review
+passed 29 checks, including exactly one staged request/release and clean
+closure. Global ADC range inspection found three components at the negative
+Q11 endpoint, all outside the recovered command windows; the whole file is
+therefore not described as unclipped.
+
+Two phase-demodulation filters and an independent tone-energy decoder recovered
+the same eight 2440 MHz / 250 kbps packets: four primary-feature/raw-127 command
+packets and four control packets. All passed independent packet CRC and
+application checksum checks. Native decoding with two filters recovered 1,874
+unique valid frames: 1,576 held `0x50` and 298 followup `0x32`, with the expected
+value and mask. Observed native frames span about 1.799 seconds, beginning
+roughly 1.062 seconds after the last recovered 250 kbps packet ends. These are
+observed packet boundaries, not proof of silence or a complete emitted train.
+
+Native reception is asymmetric: 1,786 frames on channel 33, 88 on channel 52,
+and none decoded on channel 71. Zero decodes do not establish an absent
+transmission. The earlier stage carries the requested command itself; original
+firmware uses the same ordinary flags for primary and secondary requests.
+Neither that source code nor this successful combined transmission establishes
+that a shade requires the earlier stage. Channel power and envelope analysis
+must be kept separate from packet detection counts.
+
+A subsequent standard native primary/raw-191 trial started from the original
+primary state: top rail at the top, bottom rail halfway. The operator again
+reported no movement. Independent reception yielded 2,989 matching valid
+packets (2,492 held, 497 followup), three aligned CRC-bad records, eight absent
+channel-52 slots and no unexpected or unassigned records. All 26 RF/lifecycle
+checks passed. This preserves the discrepancy at a new requested value without
+attributing it to a cache, mandatory prelude or rail-mode rule.
+
+The first native primary/raw-127 trial on the operator-confirmed bottom-up-only
+shade produced no movement from fully open. Its distinct target binding was
+checked against the latest original inventory before transmission. The DK
+received 2,988 matching valid packets (2,490 held, 498 followup), four CRC-bad
+records, ten unobserved channel-52 slots and no unexpected valid bodies. Two
+late bad records remained unassigned; all 26 RF/lifecycle checks passed. This
+is an additional observed failure, not a qualified bottom-up implementation.
+
+An exact repeat of the previously successful **secondary-63** waveform, from
+the same top-at-top/bottom-halfway starting state, then produced **no movement**.
+The DK received 2,987 matching valid packets (2,490 held and 497 followup), four
+CRC-bad records, ten unobserved slots and one late unassigned bad record; all
+26 RF/lifecycle checks passed. This result rules out treating the observed
+failures as a demonstrated primary-only problem. Preserve both secondary
+outcomes and check repeatability of RF delivery before changing command
+encoding or claiming a required extra protocol stage.
+
+A third transmission of that **unchanged secondary-63 waveform** succeeded:
+bottom fully down, then top roughly one-quarter down, with no other shade
+moving. The DK received 2,918 matching valid packets (2,445 held, 473 followup),
+30 CRC-bad records and no unexpected valid bodies. Fifty-five planned slots
+were unobserved; three bad records remained unassigned. All 26 RF/lifecycle
+checks passed. The operator clarified that the DK remained roughly three feet
+from the shade because of its short USB cable; its repositioning did not
+establish a closer or shade-side measurement. Preserve the success–failure–
+success sequence without attributing it to receiver placement, power or a
+protocol change.
+
+The next **unchanged native primary-127 reverse request succeeded physically**:
+top rail to the top, then bottom rail up to halfway, with no other shade moving.
+The source completed one finite submission and closed, but the independent DK
+captured **zero records** in its completed five-second window. Its control
+profile and shutdown checks passed; received-packet and timing qualification
+therefore failed. This is an operator-observed primary response, with no
+independent RF recording for that attempt. It does not erase the earlier
+failures or establish reliable operation.
+
+The controlled transmitter-gain comparison then retained the original
+bottom-up shade's primary-127 packet data and timing while increasing device
+gain from 50 to 56. The matched driver read back DSA −10 instead of −16 dB;
+this is a relative hardware setting, not a calibrated radiated-power
+measurement. After the operator reconnected the relocated DK, the shade
+lowered from fully open to roughly halfway with no other shade moving.
+The DK recorded 2,798 matching valid packets (2,344 held, 454 followup) and
+103 aligned CRC-bad records; 99 planned slots were unobserved, with no
+unexpected valid or unassigned records. All 31 RF/lifecycle/power checks
+passed, and the original gain-50 artifact remained unchanged. This supports
+continued testing of signal margin but does not prove power caused the earlier
+failure.
+
+Two subsequent requests at the same gain established this bottom-up shade's
+endpoints: **raw 0 lowered the rail fully and covered the window; raw 255
+raised it fully and exposed the window**. No other shade moved in either test.
+The raw-0 recording contained 2,844 matching valid packets, 82 aligned CRC-bad
+records and 74 unobserved slots; raw 255 contained 2,748 matching valid packets,
+134 aligned CRC-bad records and 118 unobserved slots. Both passed all 31
+RF/lifecycle/power checks. These directions are opposite to the observed
+single-moving-top-rail shade, so endpoint mapping must remain explicit per
+shade.
+
+The unchanged raw-127/gain-56 repeat from that confirmed open position
+produced **no movement**, including no other shade moving. Its recording
+contained 2,650 matching valid packets, 199 aligned CRC-bad records and 151
+unobserved slots; all 31 RF/lifecycle/power checks passed. The shade remained
+fully open. Thus gain 56 has both a successful and a failed raw-127 request
+from the same observed starting position.
+
+The final single raw-127 comparison raised device gain from 56 to 60
+(DSA −10 to −6 dB), keeping the waveform, timing and observed open baseline
+unchanged. The operator observed the rail lower roughly halfway, with no
+other shade moving. The DK recovered **2,986 matching valid packets**
+(2,486 held and 500 followup), four aligned CRC-bad records and three
+additional off-grid CRC-bad records; ten planned slots had no aligned record.
+All 31 RF/lifecycle/power checks passed. Local valid-packet coverage improved
+from 88.33% to 99.53% for these two trials. This supports investigating signal
+margin, but one comparison does not establish reliability or prove the cause
+of the earlier no-motion outcomes. Device gain is not calibrated radiated power.
+
+**Testing is paused for the night at the operator's request.** The final source
+session closed and the DK halted with its process reaped; both radios may be
+disconnected. Resume only after reconnection/setup confirmation, using fresh
+receiver and attempt records. The ESP32 bench images are prepared; physical
+NiceRF qualification remains outstanding.
+
+### ESP32 native test implementation
+
+The ESP32/NiceRF test implementation now has constant-memory native Jog,
+primary and secondary event plans. Cross-language checks matched 162,000 events;
+the driver has separate access settings for each operation and preserves the
+older bridge/repeater route. Timed fake-I/O tests cover register mismatches,
+completion deadlines, clock wrap, cancellation and cleanup. All 12 portable
+test executables pass with address and undefined-behavior sanitizers. The full
+364-test host suite, including the supplied-source libbladeRF C regression,
+and the Python package build pass.
+
+Both Wi-Fi and Ethernet native test images build, alongside the normal
+simulation builds. Native test images start disarmed, use explicit per-shade
+grants and require a bounded USB bench activation. Their qualified-feature
+mask is zero. Source code and fake-I/O tests do not establish that the NiceRF
+module emits the required 88-bit/no-PCF packet at 2 Mbps or sustains the
+200.5-microsecond cadence; the actual assembly is not yet available. See
+[radio qualification](../firmware/esp32_gateway/docs/radio-qualification.md).
+Native enrollment is not implemented by substituting a short Jog train.
+
+Schema 3 stores explicit per-shade control role and endpoint direction,
+independently of room product metadata, grants and backend capability.
+Schema-1 inventories migrate with unknown mappings. Schema-1/2 histories with
+ambiguous order retain an unknown latest feature; a new request establishes it.
+Only that latest request is emitted as the inventory `$cp`. Touch, web and HTTP
+controls expose features separately; mapped room endpoints use each member's
+own value. Unmapped controls show raw values and never infer physical rail
+identity or a universal open/closed direction. Simulator/API tests exercise
+fictional bottom-up, top-down and dual-rail mechanisms with separate requested
+values; they do not simulate motor feedback. The compiled ESP32 instruction
+emulator boots with eight fictional shades in four rooms and passes seven
+read-only network checks plus seven control/API checks, including independent
+dual-rail values, opposite mapped endpoint directions, room commands, fragmented
+TCP release and strict JSON rejection. These checks exercise the firmware
+image with RF disabled; they do not qualify the NiceRF peripheral.

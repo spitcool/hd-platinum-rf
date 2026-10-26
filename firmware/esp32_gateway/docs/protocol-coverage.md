@@ -3,7 +3,7 @@
 
 # Gateway compatibility contract
 
-Evidence reviewed 2026-10-24. This is an inventory of the compatibility target,
+Evidence reviewed 2026-10-25. This is an inventory of the compatibility target,
 including operations that remain unsupported. An implemented command handler,
 a passing native test, and successful operation with a real shade are separate
 claims. The new ESP32 implementation is independently authored; it does not
@@ -46,14 +46,14 @@ building or testing the public firmware. Public fixtures use fictional records.
 | Area | Implemented in this component | Remaining qualification or missing behavior |
 | --- | --- | --- |
 | Core command families | 26 of the 27 ordinary-app prefixes below: startup, inventory, room/shade/scene/schedule management, staging/release, room/scene actions, Sync cancellation, and LED setting storage | `$RepTst` is rejected. Metadata and simulated operation tests do not establish physical compatibility. |
-| Local touchscreen | Shade/room-group selection, paginated lists, Open/Close through the shared dispatcher, grant/busy/fault gates | Physical CoreS3 SE touch/display and shared LCD/W5500 bus qualification; groups currently mean rooms. |
+| Local touchscreen and web | Shade/room and feature selection, raw values, explicitly mapped endpoints, grant/backend/busy/fault gates | Physical CoreS3 SE touch/display and LCD/W5500 concurrency; role/direction must be installed from observations. Groups mean rooms. |
 | LAN adapter | TCP 522 banner/prefix/LF-CR, three simultaneous clients, bounded queues/timeouts, explicit client subnet; UDP 137 discovery | Physical Wi-Fi/W5500 original-app discovery and multi-client tests. |
-| Radio commands | Separate bounded radio owner; primary position, Sync and Jog packet construction; durable sequence reservation; RF disabled by default | RF2401F20 packet framing, timing, PID, first-article electrical checks, receiver movement, and new-identity enrollment. |
-| Other feature channels | Product validation, requested state, scenes and simulation for `07`, `10`, `18`, `19` | Hardware adapter rejects these while real RF is enabled. |
-| Persistence | Versioned CRC-protected state encoding, reference validation, NVS commit/readback before mutation acknowledgement, grants separate from creation | Physical power-loss qualification and future schema migration. |
+| Radio commands | Separate finite owner; existing 250 kbps repeater route plus native 2 Mbps primary/secondary/Jog planner and bench candidate; no automatic retries | Unassembled RF2401F20 stack: framing, SPI/CE timing, electrical checks and receiver acceptance. Native Sync/enrollment rejected pending distinct implementation. |
+| Other feature channels | Product validation, request history/scenes, secondary `18` native candidate; simulation for `07`, `10`, `19` | Watched original-bridge and direct synthetic secondary requests reproduced coupled motion on one top-down/bottom-up installation. Delivery repeatability and NiceRF acceptance remain unqualified; tilt/preset encoding and behavior remain unqualified and physically disabled. |
+| Persistence | CRC-protected schema 3 with per-shade role/direction mappings and a separate latest requested feature; schema-1/2 migration; NVS commit/readback; grants separate from creation | Physical power-loss qualification; opaque original inventory import remains incomplete. |
 | Schedules | Running app-set local clock, weekly day mask, durable execution marker, finite scene dispatch | No RTC/NTP/DST/solar service; date/time must be set after reboot. |
 | LED setting | Persisted and included in inventory | No physical CoreS3 LED/backlight mapping. |
-| Provisioning | USB serial status/export/import, explicit feature grants, one-time sequence seed | USB import takes this component's binary state, not an original raw inventory or EEPROM image. |
+| Provisioning | USB status/export/import, grants, control mapping, complete LAN transactions, temporary native bench arming, repeater sequence seed | Import takes this component's binary state, not an original raw inventory or EEPROM image. Bench permission is not qualification. |
 | Original metadata | Fresh text title, own MAC/version, supported room product catalog | Opaque `$ct`/unknown records and unknown imported product codes are not preserved by the present state schema. |
 | Legacy maintenance | Reject unsupported requests; never interpret 8051 firmware bytes as an ESP32 update | The 30 additional original command prefixes below, EEPROM/bootloader ABI, solar data, diagnostics, and remote configuration semantics. |
 
@@ -143,11 +143,11 @@ references. No direct radio unlink operation was identified in that path.
 | `$MAC0xHHHHHHHHHHHH-` | Replacement device identity; do not reuse the original bridge's MAC. |
 | `$LEDlPPP-` | Brightness 0–255. |
 | `$upd00-`, `$reset`, `$upd01-` | Atomic client-side snapshot rebuild. |
-| `$set006-` | Original snapshot setting; meaning unresolved. |
+| `$set006-` | Original serializer reads mode byte C9A; bit 0 is clear in value 6. This snapshot does not prove continuously unchanged runtime mode. The replacement exposes no original-memory setting ABI. |
 | `$ct...` | Original capture contains opaque bytes, not trustworthy UTF-8. Preserve byte-for-byte when importing; do not use text trimming. |
 | `$crRR-TT-0xHHHH-NAME` | Room ID, product type, two-byte room RF identity, name. |
 | `$csII-RR-GG-NAME` | Global shade ID, room ID, room-local group slot, name. |
-| `$cpII-FF-PPP-` | Requested feature state. Jog/Sync status must not be mistaken for measured position. |
+| `$cpII-FF-PPP-` | Requested feature/value. Inventory emits only the known latest control for each shade; per-feature history is retained separately. No measured position is implied. |
 | `$cmSS-NAME` | Scene definition. |
 | `$cqSS-II-LL-` | Scene-to-shade inclusion flag. |
 | `$cxSS-RR-FF-PPP-UU-` | Scene room feature value and final legacy field. |
@@ -155,11 +155,19 @@ references. No direct radio unlink operation was identified in that path.
 | `$ctb...` and other unknown records | Preserve opaque imported data; absence from a fresh database is not evidence of incompatibility by itself. |
 
 Persist complete inventory, referential integrity, room RF identities, shade
-slots, requested state, clocks/settings, and the next RF sequence before
-acknowledging committed changes. The radio sequence reservation must reach
-durable storage before transmission and remain consumed after failure. A power
-loss must expose either the previous valid state or the next valid state, never
-a partially written database. Storage schema changes need explicit migration.
+slots, request history, latest requested feature, control mappings and settings before acknowledging
+committed changes. Repeater sequence reservations must reach durable storage
+before transmission and remain consumed after failure; native packets have no
+repeater ordinal dependency. Schema 3 preserves explicit role/direction mappings
+for features 4 and 18 and tracks the latest requested control independently of
+history insertion order. Schema-1/2 imports migrate to schema 3: schema-1 mappings
+remain unknown, and the latest feature is inferred only when exactly one history
+entry exists. Ambiguous legacy order remains unknown and emits no invented
+latest `$cp`. Binding/product changes invalidate the affected grants, mappings
+and request history; renaming preserves them. Companion rail positions are not
+fabricated from the latest command.
+A power loss must expose a valid committed database. Date/time remains invalid
+after reboot until the app supplies it.
 
 The original room identity uses two PRNG bytes. Original shade allocation
 chooses an unused one-hot group in its room; the eight-slot limit is established.
@@ -175,12 +183,12 @@ primary feature `04`; product codes `2`, `13`, and `25` also expose `18`, codes
 
 | Feature | Client meaning | Physical qualification |
 | --- | --- | --- |
-| `01` | Sync, value `0` | Original RF captured; existing-target resync demonstrated with HOST. New RF identity enrollment unresolved. |
-| `04` | Primary position, `0` closed to `255` open | HOST has observed movement on a particular installation. ESP32 packet radio still needs qualification. |
+| `01` | Sync, value `0` | Original/SDR existing-target resync evidence is separate. Native ESP32 route rejects Sync; a longer held/tail implementation and fresh-binding enrollment tests are still required. |
+| `04` | Primary raw position 0–255; physical direction is installation-specific | Watched SDR endpoints/intermediates exist on selected shades. ESP32 planner/bench transport is implemented; NiceRF interoperability is untested. |
 | `07` | Product-specific tilt | Client control established; receiver behavior unqualified. |
 | `10` | Intermediate preset, app value `7` | Do not relabel as a universal emergency stop. |
 | `12` | Jog, requested `0`; status/RF normalized to `1` | Original capture and payload oracle established; ESP32 execution unqualified. |
-| `18` | Second rail / second position | Client control established; receiver behavior unqualified. |
+| `18` | Secondary raw position; not an inferred physical rail label | Original builder/scheduler establish fixed `6D`/`32` bodies. Python and C++ planners are tested; watched SDR raw-63 acceptance and independent reception exist on one target. Repeatability, endpoints and NiceRF transport remain unqualified. |
 | `19` | Product-specific additional control | Client control established; receiver behavior unqualified. |
 
 ## Complete remaining original dispatcher inventory
@@ -197,7 +205,7 @@ returning invented success responses.
 | `$wrtC0x...` | Legacy firmware write protocol; vendor image address space is not an ESP32 update format. |
 | `$ssvrIP0x...` | Original network configuration path; exact remote-server behavior unresolved. |
 | `$sshdIP0x...` | Original network configuration path; exact purpose unresolved. |
-| `$setN-` | Sets an original configuration byte; meaning of bits unresolved. |
+| `$setN-` | Original configuration/mode byte; selected mode-bit paths have source evidence, but full write semantics remain unsupported. |
 | `$reset` | Original reset/configuration path; not equivalent to the snapshot response token. |
 | `$sigN-` | Stores an original signal/configuration byte; semantic mapping unresolved. |
 | `$stnN-...` | Original name/title-related path; complete body and behavior unresolved. |

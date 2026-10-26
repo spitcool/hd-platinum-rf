@@ -110,6 +110,14 @@ std::string encodeState(const State& s) {
       w.u8(p.feature);
       w.u8(p.value);
     }
+    w.u8(sh.controls.size());
+    for (const auto& m : sh.controls) {
+      w.u8(m.feature);
+      w.u8(unsigned(m.role));
+      w.u8(unsigned(m.endpoints));
+    }
+    // 0xff is reserved for unknown chronology, not a valid control feature.
+    w.u8(sh.last_requested_feature ? *sh.last_requested_feature : 0xff);
   }
   w.u16(s.scenes.size());
   for (const auto& sc : s.scenes) {
@@ -147,7 +155,10 @@ bool decodeState(const std::string& bytes, State& output) {
     return false;
   Reader r{bytes};
   State s;
-  s.schema = r.u32();
+  const uint32_t storedSchema = r.u32();
+  if (storedSchema != 1 && storedSchema != 2 && storedSchema != 3)
+    return false;
+  s.schema = 3;
   s.generation = r.u32();
   s.led = uint8_t(r.u8());
   s.title = r.text();
@@ -188,6 +199,25 @@ bool decodeState(const std::string& bytes, State& output) {
       p.feature = uint8_t(r.u8());
       p.value = uint8_t(r.u8());
       sh.requested.push_back(p);
+    }
+    if (storedSchema >= 2) {
+      unsigned mappings = r.u8();
+      if (mappings > 2)
+        return false;
+      for (unsigned j = 0; j < mappings && r.ok; ++j) {
+        ControlMapping m;
+        m.feature = uint8_t(r.u8());
+        m.role = static_cast<ControlRole>(r.u8());
+        m.endpoints = static_cast<EndpointMapping>(r.u8());
+        sh.controls.push_back(m);
+      }
+    }
+    if (storedSchema >= 3) {
+      const unsigned latest = r.u8();
+      if (latest != 0xff)
+        sh.last_requested_feature = uint8_t(latest);
+    } else if (sh.requested.size() == 1) {
+      sh.last_requested_feature = sh.requested.front().feature;
     }
     s.shades.push_back(std::move(sh));
   }

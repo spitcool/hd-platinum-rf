@@ -17,6 +17,7 @@ add_library(gateway_native
   lib/gateway_core/discovery.cpp
   lib/gateway_http/http_protocol.cpp
   lib/gateway_radio/gateway_radio.cpp
+  lib/gateway_radio/native_plan.cpp
   lib/gateway_ui/ui_model.cpp
   lib/gateway_ui/ui_renderer.cpp
   lib/gateway_display/display_bus.cpp)

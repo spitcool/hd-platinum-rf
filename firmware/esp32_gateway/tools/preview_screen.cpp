@@ -77,9 +77,15 @@ int main(int argc, char** argv) {
     v.title = "Living room";
     v.member_count = 2;
     v.controls_enabled = true;
+    v.second_enabled = true;
+    v.raw_controls_enabled = true;
+    v.feature_navigation = true;
+    v.control_label = "Primary";
     if (mode == "disabled") {
       v.status = "Busy";
       v.controls_enabled = false;
+      v.second_enabled = false;
+      v.raw_controls_enabled = false;
       v.message = "Another request is active";
     }
   } else if (mode != "shades") {

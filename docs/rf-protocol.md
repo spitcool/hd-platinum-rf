@@ -5,6 +5,14 @@
 
 Status: working specification with local handheld/wide-position decoding and two observed 250 kbps SDR shade responses, evidence review dated 2026-10-24.
 
+For the subsequent 2026-10-25 direct-native shade trials, secondary-position
+source checks and ESP32 test implementation, see the
+[current conformance record](protocol-conformance.md#native-primary-position-trials)
+and [validation plan](rf-validation-plan.md). The dated capture sections below
+retain their original scope; they are not the current qualification status of
+every implementation. The NiceRF module still requires physical framing and
+timing validation.
+
 This document specifies the legacy Hunter Douglas **Platinum** four-group hand-remote signal, including the remote identified by part number `2984495100`, and packets received during original App Bridge transactions. These include wide remote-style position frames and a separately decoded 2440 MHz, 250 kbps ESB signal. The relationship between those paths and each physical emitter remains under investigation. This document does not describe the later PowerView/Pebble protocol. Installation-specific identities and network addresses remain private.
 
 The practical result so far is that Platinum is not Wi-Fi or Bluetooth. The handheld uses a proprietary application payload carried by a Nordic-style 2.4 GHz GFSK packet radio. Initial local IQ decoding recovered Group 1 Up, Down, and their following release-tail codes with valid CRCs. For this captured remote, the supported layout is an **88-bit frame without a Packet Control Field**, at approximately `2 Mbps`. This differs from the earlier datasheet-based 97-bit hypothesis. Generated packets have subsequently passed protected conducted tests on all three frequencies; see the [lab log](lab-log.md#finite-transmitter-prototype--2026-10-23). Separate private 250 kbps helpers have now produced two operator-observed responses on one shade. Repeatability, the full action matrix, an independent Nordic-receiver cross-check, and general timing qualification remain incomplete; the public 2 Mbps position backend has not gained this new path.

@@ -9,9 +9,11 @@
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <esp_mac.h>
+#include <esp_timer.h>
 #include <lwip/sockets.h>
 
 #include <atomic>
+#include <algorithm>
 #include <cerrno>
 #include <memory>
 
@@ -22,6 +24,7 @@
 #include "http_protocol.h"
 #include "output_buffer.h"
 #include "sequence_store.h"
+#include "serial_arguments.h"
 #include "ui_model.h"
 #include "ui_renderer.h"
 #include "web_ui.h"
@@ -63,6 +66,15 @@
 #ifndef GATEWAY_RF_QUALIFIED
 #define GATEWAY_RF_QUALIFIED false
 #endif
+#ifndef GATEWAY_RF_NATIVE
+#define GATEWAY_RF_NATIVE false
+#endif
+#ifndef GATEWAY_RF_BENCH
+#define GATEWAY_RF_BENCH false
+#endif
+#ifndef GATEWAY_RF_NATIVE_QUALIFIED_FEATURES
+#define GATEWAY_RF_NATIVE_QUALIFIED_FEATURES 0u
+#endif
 
 #if GATEWAY_NETWORK_WIFI
 using NetClient = WiFiClient;
@@ -83,6 +95,28 @@ class NetServer final : public EthernetServer {
 #endif
 namespace {
 constexpr unsigned ClientCount = 3, MaxOutput = 65536;
+constexpr uint32_t NativeFeatures = (1u << 4) | (1u << 12) | (1u << 18);
+constexpr uint32_t RepeaterFeatures = (1u << 1) | (1u << 4) | (1u << 12);
+static_assert((GATEWAY_RF_NATIVE_QUALIFIED_FEATURES & ~NativeFeatures) == 0,
+              "Native qualification contains an unsupported feature");
+std::atomic<uint32_t> nativeBenchFeatures{0};
+std::atomic<uint32_t> nativeBenchUntilSeconds{0};
+
+uint32_t backendFeatures() {
+  if (!GATEWAY_RF_ENABLED)
+    return platinum::KnownFeatureMask;
+  if (!GATEWAY_RF_NATIVE)
+    return GATEWAY_RF_QUALIFIED ? RepeaterFeatures : 0u;
+  uint32_t features = GATEWAY_RF_NATIVE_QUALIFIED_FEATURES;
+  if (GATEWAY_RF_BENCH && nativeBenchUntilSeconds.load() > esp_timer_get_time() / 1000000)
+    features |= nativeBenchFeatures.load();
+  return features & NativeFeatures;
+}
+
+const char* backendName() {
+  return !GATEWAY_RF_ENABLED ? "simulated"
+         : GATEWAY_RF_NATIVE ? "native-radio" : "repeater-radio";
+}
 NetServer lan(522), http(8077);
 NetUDP udp;
 Preferences database;
@@ -256,19 +290,10 @@ void radioTask(void*) {
         vTaskDelay(pdMS_TO_TICKS(1));
         continue;
       }
-      if (!sequenceOpen || !sequence.isKey("next") || !radioReady) {
+      if (!radioReady || !(backendFeatures() & (1u << c.feature))) {
         ok = false;
         break;
       }
-      auto ordinal = allocator.allocate();
-      if (!ordinal) {
-        sequenceReady = false;
-        ok = false;
-        break;
-      }
-      if (*ordinal == 65535)
-        sequenceReady = false;
-      // Never return a reserved ordinal, including timeout, cancellation or reset.
       platinum::radio::Command command;
       command.room_id = {uint8_t(c.rf_id >> 8), uint8_t(c.rf_id)};
       command.mask = c.mask;
@@ -276,6 +301,8 @@ void radioTask(void*) {
       command.operation_enabled = true;
       if (c.feature == 4)
         command.operation = platinum::radio::Operation::Position;
+      else if (c.feature == 18 && GATEWAY_RF_NATIVE)
+        command.operation = platinum::radio::Operation::SecondaryPosition;
       else if (c.feature == 1)
         command.operation = platinum::radio::Operation::Sync;
       else if (c.feature == 12)
@@ -284,8 +311,43 @@ void radioTask(void*) {
         ok = false;
         break;
       }
-      const auto receipt = radio.transmit(command, *ordinal);
-      ok = receipt.code == platinum::radio::ResultCode::Submitted;
+      platinum::radio::Result receipt;
+      if (GATEWAY_RF_NATIVE) {
+        platinum::radio::NativeSchedule schedule;
+        schedule.prior_channel = 71;
+        schedule.prior_alternate = 0;
+        schedule.command_frames = 7500;
+        schedule.followup_frames = 1500;
+        schedule.slot_half_us = 401;
+        // These counts and initial state reproduce the finite SDR diagnostic
+        // train. They do not claim measured original interrupt epochs.
+        uint8_t feature = c.feature;
+        receipt = radio.transmitNative(command, schedule, [](void* context) {
+          const auto feature = *static_cast<const uint8_t*>(context);
+          return abortRadio.load() || !(backendFeatures() & (1u << feature));
+        }, &feature);
+      } else {
+        if (!sequenceOpen || !sequence.isKey("next")) {
+          ok = false;
+          break;
+        }
+        auto ordinal = allocator.allocate();
+        if (!ordinal) {
+          sequenceReady = false;
+          ok = false;
+          break;
+        }
+        if (*ordinal == 65535)
+          sequenceReady = false;
+        // Repeater ordinals are reserved durably and never returned on failure.
+        receipt = radio.transmit(command, *ordinal);
+      }
+      ok = receipt.code == platinum::radio::ResultCode::Submitted ||
+           receipt.code == platinum::radio::ResultCode::BenchSubmitted;
+      Serial.printf("radio shade=%u feature=%u result=%s frames=%lu max_lateness_us=%lu\n",
+                    c.shade, c.feature, platinum::radio::resultName(receipt.code),
+                    static_cast<unsigned long>(receipt.frames_submitted),
+                    static_cast<unsigned long>(receipt.max_lateness_us));
       if (!ok) {
         radioReady = false;
         break;
@@ -298,12 +360,11 @@ void radioTask(void*) {
 bool submit(const std::vector<platinum::RadioCommand>& commands) {
   if (!storageHealthy || !jobs || commands.empty())
     return false;
-  // Secondary features are accepted for simulation only until their RF is qualified.
   if (GATEWAY_RF_ENABLED) {
-    if (!GATEWAY_RF_QUALIFIED || !radioReady)
+    if (!radioReady)
       return false;
     for (const auto& c : commands)
-      if (c.feature != 1 && c.feature != 4 && c.feature != 12)
+      if (!(backendFeatures() & (1u << c.feature)))
         return false;
   }
   auto* batch = new (std::nothrow) std::vector<platinum::RadioCommand>(commands);
@@ -324,8 +385,9 @@ platinum::ui::Runtime screenRuntime() {
   platinum::ui::Runtime runtime;
   runtime.busy = engine->busy();
   runtime.storage_ok = storageHealthy && engine->valid();
-  runtime.backend_ready =
-      !GATEWAY_RF_ENABLED || (GATEWAY_RF_QUALIFIED && radioReady && sequenceReady);
+  runtime.backend_features = backendFeatures();
+  runtime.backend_ready = !GATEWAY_RF_ENABLED ||
+                          (radioReady && (GATEWAY_RF_NATIVE || sequenceReady));
   return runtime;
 }
 bool drawScreen(const platinum::ui::View& view) {
@@ -470,6 +532,44 @@ void serviceSerial() {
                     GATEWAY_RF_ENABLED ? "radio" : "simulation", engine->busy(),
                     unsigned(engine->state().rooms.size()),
                     unsigned(engine->state().shades.size()));
+      Serial.printf("route=%s backend_features=%lu native_qualified_features=%lu\n",
+                    backendName(), static_cast<unsigned long>(backendFeatures()),
+                    static_cast<unsigned long>(GATEWAY_RF_NATIVE_QUALIFIED_FEATURES));
+    } else if (line.rfind("rf-test ", 0) == 0) {
+      std::array<uint32_t, 1> arguments{};
+      const bool parsed = platinum::serial::unsignedArguments(line, "rf-test", arguments);
+      const uint32_t features = arguments[0];
+      const bool ok = GATEWAY_RF_ENABLED && GATEWAY_RF_NATIVE && GATEWAY_RF_BENCH &&
+                      parsed &&
+                      !(features & ~NativeFeatures) && (!features || !engine->busy());
+      if (ok) {
+        nativeBenchFeatures = 0;
+        nativeBenchUntilSeconds = uint32_t(esp_timer_get_time() / 1000000) + 60;
+        nativeBenchFeatures = features;
+        if (!features)
+          abortRadio = true;
+      }
+      serialReply(!ok ? "error: native bench image required, invalid features, or busy"
+                  : features ? "ok: native bench features armed for at most 60 seconds; grants still required"
+                             : "ok: native bench features disarmed");
+    } else if (line.rfind("command ", 0) == 0) {
+      const auto command = line.substr(8);
+      if (command.empty() || command.size() > platinum::MaxInput ||
+          !platinum::validateTransaction(engine->state(), command)) {
+        serialReply("error: invalid or incomplete transaction");
+      } else {
+        platinum::Session session;
+        auto records = engine->feed(session, command);
+        bool ok = session.pending.empty() && session.staged.empty() && !session.closed;
+        for (const auto& record : records) {
+          if (record.payload.rfind("$err", 0) == 0)
+            ok = false;
+          serialReply(record.payload.c_str());
+        }
+        queueRecords(records);
+        serialReply(ok ? "ok: transaction processed; delivery unverified"
+                       : "error: transaction rejected");
+      }
     } else if (line == "export") {
       auto data = platinum::encodeState(engine->state());
       for (unsigned char b : data)
@@ -500,10 +600,10 @@ void serviceSerial() {
                       ? "ok"
                       : "error: invalid state, storage fault, or busy");
     } else if (line.rfind("grant ", 0) == 0) {
-      unsigned shade = 0, features = 0;
-      char tail;
-      bool ok =
-          sscanf(line.c_str(), "grant %u %u %c", &shade, &features, &tail) == 2 && shade < 100;
+      std::array<uint32_t, 2> arguments{};
+      const bool parsed = platinum::serial::unsignedArguments(line, "grant", arguments);
+      const uint32_t shade = arguments[0], features = arguments[1];
+      const bool ok = parsed && shade < 100;
       auto state = engine->state();
       bool found = false;
       for (auto& s : state.shades)
@@ -512,10 +612,33 @@ void serviceSerial() {
           found = true;
         }
       serialReply(ok && found && engine->replace(state) ? "ok" : "error: invalid grant or busy");
+    } else if (line.rfind("control ", 0) == 0) {
+      std::array<uint32_t, 4> arguments{};
+      const bool parsed = platinum::serial::unsignedArguments(line, "control", arguments);
+      const uint32_t shade = arguments[0], feature = arguments[1], role = arguments[2],
+                     open = arguments[3];
+      bool ok = parsed && shade < engine->state().shades.size() &&
+                (feature == 4 || feature == 18) && role <= 3 &&
+                (open == 0 || open == 255 || open == 256);
+      auto state = engine->state();
+      if (ok) {
+        auto& mappings = state.shades[shade].controls;
+        mappings.erase(std::remove_if(mappings.begin(), mappings.end(), [feature](const auto& m) {
+          return m.feature == feature;
+        }), mappings.end());
+        if (role || open != 256)
+          mappings.push_back({uint8_t(feature), platinum::ControlRole(role),
+                             open == 256 ? platinum::EndpointMapping::Unknown
+                             : open == 0 ? platinum::EndpointMapping::OpenAtZero
+                                         : platinum::EndpointMapping::OpenAt255});
+      }
+      serialReply(ok && engine->replace(state) ? "ok: control mapping saved; grants unchanged"
+                                               : "error: invalid mapping or busy");
     } else if (line.rfind("services ", 0) == 0) {
-      unsigned tcp = 0, api = 0, page = 0;
-      char tail;
-      bool ok = sscanf(line.c_str(), "services %u %u %u %c", &tcp, &api, &page, &tail) == 3 &&
+      std::array<uint32_t, 3> arguments{};
+      const bool parsed = platinum::serial::unsignedArguments(line, "services", arguments);
+      const uint32_t tcp = arguments[0], api = arguments[1], page = arguments[2];
+      bool ok = parsed &&
                 tcp <= 1 && api <= 1 && page <= 1;
       serialReply(ok && saveServices({bool(tcp), bool(api), bool(page)})
                       ? "ok"
@@ -532,15 +655,19 @@ void serviceSerial() {
         state.rooms[room].rf_id = identity;
         state.shades[shade].slot = slot;
         for (auto& sh : state.shades)
-          if (sh.room == room)
+          if (sh.room == room) {
             sh.enabled_features = 0;
+            sh.controls.clear();
+            platinum::clearRequestedHistory(sh);
+          }
       }
       serialReply(ok && engine->replace(state) ? "ok: room grants revoked"
                                                : "error: invalid binding or busy");
     } else if (line.rfind("sequence ", 0) == 0) {
-      unsigned value = 0;
-      char tail;
-      bool ok = sscanf(line.c_str(), "sequence %u %c", &value, &tail) == 1 && value <= 65535 &&
+      std::array<uint32_t, 1> arguments{};
+      const bool parsed = platinum::serial::unsignedArguments(line, "sequence", arguments);
+      const uint32_t value = arguments[0];
+      bool ok = parsed && value <= 65535 &&
                 !engine->busy();
       Preferences seq;
       if (ok) {
@@ -556,7 +683,8 @@ void serviceSerial() {
     } else
       serialReply(
           "commands: status | export | import HEX | bind SHADE ROOM_HEX SLOT | grant SHADE "
-          "FEATURE_BITMASK | sequence NEXT_UNUSED | services TCP HTTP WEB");
+          "FEATURE_BITMASK | control SHADE FEATURE ROLE OPEN_VALUE | rf-test FEATURE_BITMASK | "
+          "command LAN_TRANSACTION | sequence NEXT_UNUSED | services TCP HTTP WEB");
   }
 }
 // Ethernet 2.0.2 silently clamps oversized writes to its socket buffer.
@@ -692,7 +820,11 @@ void addServices(JsonObject object) {
 void addStatus(JsonDocument& doc) {
   doc["storage_ok"] = storageHealthy;
   doc["busy"] = engine->busy();
-  doc["backend"] = GATEWAY_RF_ENABLED ? "experimental-radio" : "simulated";
+  doc["backend"] = backendName();
+  doc["backend_features"] = backendFeatures();
+  doc["native_qualified_features"] = GATEWAY_RF_NATIVE_QUALIFIED_FEATURES;
+  doc["native_bench_features"] = GATEWAY_RF_NATIVE && GATEWAY_RF_BENCH
+                                    ? backendFeatures() & ~GATEWAY_RF_NATIVE_QUALIFIED_FEATURES : 0u;
   doc["delivery"] = "unverified";
   doc["full_compatibility"] = false;
   addServices(doc["services"].to<JsonObject>());
@@ -745,14 +877,49 @@ void processHttp(const platinum::http::Request& req) {
         item["id"] = shade.id;
         item["room_id"] = shade.room;
         item["room"] = room.name;
+        item["product"] = room.product;
         item["name"] = shade.name;
         item["features"] = shade.enabled_features;
-        item["enabled"] = bool(shade.enabled_features & (1u << 4));
+        item["backend_features"] = backendFeatures();
+        item["enabled"] = platinum::featureAvailable(engine->state(), shade, 4, backendFeatures());
         item["position"] = nullptr;
         item["observed_position"] = nullptr;
+        item["last_requested_feature"] = nullptr;
+        if (shade.last_requested_feature)
+          item["last_requested_feature"] = *shade.last_requested_feature;
         for (const auto& pos : shade.requested)
           if (pos.feature == 4)
             item["position"] = pos.value;
+        auto controls = item["controls"].to<JsonArray>();
+        for (uint8_t feature : {4, 18, 7, 19, 10}) {
+          if (!platinum::productSupportsFeature(room.product, feature))
+            continue;
+          auto control = controls.add<JsonObject>();
+          const auto mapping = platinum::controlMapping(shade, feature);
+          control["feature"] = feature;
+          control["label"] = platinum::controlLabel(shade, feature);
+          control["granted"] = bool(shade.enabled_features & (1u << feature));
+          control["backend_supported"] = bool(backendFeatures() & (1u << feature));
+          control["available"] = platinum::featureAvailable(engine->state(), shade, feature,
+                                                           backendFeatures());
+          control["requested_value"] = nullptr;
+          control["request_status"] = "never_requested";
+          for (const auto& position : shade.requested)
+            if (position.feature == feature) {
+              control["requested_value"] = position.value;
+              control["request_status"] = !shade.last_requested_feature ? "unknown_order" :
+                  platinum::isLatestRequestedFeature(shade, feature) ? "latest" : "earlier";
+            }
+          control["role"] = uint8_t(mapping.role);
+          control["endpoint_mapping"] = uint8_t(mapping.endpoints);
+          control["open_value"] = nullptr;
+          control["close_value"] = nullptr;
+          uint8_t value = 0;
+          if (platinum::endpointValue(shade, feature, true, value))
+            control["open_value"] = value;
+          if (platinum::endpointValue(shade, feature, false, value))
+            control["close_value"] = value;
+        }
       }
     } else if (req.path == "/api/rooms") {
       auto rooms = doc["rooms"].to<JsonArray>();
@@ -826,9 +993,13 @@ void processHttp(const platinum::http::Request& req) {
     return;
   }
   std::string command;
-  if (request == "POST /api/command HTTP/1.1")
+  if (request == "POST /api/command HTTP/1.1") {
+    if (!input["command"].is<std::string>()) {
+      httpReply(400, "{\"error\":\"command must be a string\"}");
+      return;
+    }
     command = input["command"].as<std::string>();
-  else if (request == "POST /api/scenes HTTP/1.1") {
+  } else if (request == "POST /api/scenes HTTP/1.1") {
     if (!input["scene"].is<unsigned>() || input["scene"].as<unsigned>() >= 100) {
       httpReply(400, "{\"error\":\"invalid scene\"}");
       return;
@@ -836,25 +1007,55 @@ void processHttp(const platinum::http::Request& req) {
     command = "$inm" + std::to_string(input["scene"].as<unsigned>()) + "-";
   } else if (request == "POST /api/positions HTTP/1.1" || request == "POST /api/sync HTTP/1.1" ||
              request == "POST /api/jog HTTP/1.1") {
-    if (!input["shade"].is<unsigned>() || input["shade"].as<unsigned>() >= 100) {
+    const bool positionRequest = request == "POST /api/positions HTTP/1.1";
+    const bool roomRequest = positionRequest && !input["room"].isNull();
+    auto target = roomRequest ? input["room"] : input["shade"];
+    if (!target.is<unsigned>() || target.as<unsigned>() >= 100 ||
+        (roomRequest && !input["shade"].isNull())) {
       httpReply(400, "{\"error\":\"invalid shade\"}");
       return;
     }
-    unsigned shade = input["shade"].as<unsigned>();
+    unsigned shade = target.as<unsigned>();
     char buffer[48];
     if (request == "POST /api/sync HTTP/1.1")
       snprintf(buffer, sizeof(buffer), "$rsc%02u-", shade);
     else if (request == "POST /api/jog HTTP/1.1")
       snprintf(buffer, sizeof(buffer), "$pss%02u-12-000-$rls", shade);
     else {
-      if (!input["position"].is<unsigned>() || input["position"].as<unsigned>() > 255) {
-        httpReply(400, "{\"error\":\"invalid position\"}");
+      if ((!input["feature"].isNull() && !input["feature"].is<unsigned>()) ||
+          input["feature"].as<unsigned>() > 31) {
+        httpReply(400, "{\"error\":\"invalid feature\"}");
         return;
       }
-      snprintf(buffer, sizeof(buffer), "$pss%02u-04-%03u-$rls", shade,
-               input["position"].as<unsigned>());
+      const uint8_t feature = input["feature"].isNull() ? 4 : input["feature"].as<unsigned>();
+      if (feature != 4 && feature != 18 && feature != 7 && feature != 19 && feature != 10) {
+        httpReply(400, "{\"error\":\"invalid position feature\"}");
+        return;
+      }
+      if (!input["endpoint"].isNull()) {
+        const std::string endpoint = input["endpoint"].as<std::string>();
+        if (!input["endpoint"].is<std::string>() || !input["position"].isNull() ||
+            (endpoint != "open" && endpoint != "close")) {
+          httpReply(400, "{\"error\":\"use either a raw position or an open/close endpoint\"}");
+          return;
+        }
+        command = platinum::endpointTransaction(engine->state(), shade, roomRequest, feature,
+                                                endpoint == "open");
+      } else {
+        if (!input["position"].is<unsigned>() || input["position"].as<unsigned>() > 255) {
+          httpReply(400, "{\"error\":\"invalid position\"}");
+          return;
+        }
+        command = platinum::rawControlTransaction(engine->state(), shade, roomRequest, feature,
+                                                  input["position"].as<unsigned>());
+      }
+      if (command.empty()) {
+        httpReply(409, "{\"error\":\"control unavailable or endpoint mapping unknown\"}");
+        return;
+      }
     }
-    command = buffer;
+    if (!positionRequest)
+      command = buffer;
   } else {
     httpReply(404, "{\"error\":\"not found\"}");
     return;
@@ -864,7 +1065,7 @@ void processHttp(const platinum::http::Request& req) {
     return;
   }
   const auto id = input["request_id"].as<std::string>();
-  if (id.size() < 8 || id.size() > 64 ||
+  if (!input["request_id"].is<std::string>() || id.size() < 8 || id.size() > 64 ||
       id.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_") !=
           std::string::npos) {
     httpReply(
@@ -906,7 +1107,7 @@ void processHttp(const platinum::http::Request& req) {
   output["operation"]["status"] = operation.status;
   output["delivery"] = "unverified";
   output["status"] = error ? "rejected" : accepted ? "submitted" : "processed";
-  output["backend"] = GATEWAY_RF_ENABLED ? "experimental-radio" : "simulated";
+  output["backend"] = backendName();
   if (!session.pending.empty() || !session.staged.empty()) {
     httpReply(400, "{\"error\":\"command incomplete or release missing\"}");
     return;
@@ -1142,6 +1343,17 @@ void setup() {
   platinum::radio::Policy policy;
   policy.enabled = GATEWAY_RF_ENABLED;
   policy.qualified = GATEWAY_RF_QUALIFIED;
+  policy.route = GATEWAY_RF_NATIVE ? platinum::radio::Route::Native
+                                 : platinum::radio::Route::BridgeRepeater;
+  auto access = [](uint8_t feature) {
+    return (GATEWAY_RF_NATIVE_QUALIFIED_FEATURES & (1u << feature))
+               ? platinum::radio::NativeAccess::Qualified
+           : GATEWAY_RF_BENCH ? platinum::radio::NativeAccess::Bench
+                             : platinum::radio::NativeAccess::Disabled;
+  };
+  policy.native_position = access(4);
+  policy.native_jog = access(12);
+  policy.native_secondary = access(18);
   if (GATEWAY_RF_ENABLED && busPowered)
     radioReady = radio.begin(policy) == platinum::radio::ResultCode::Ready;
   storageHealthy = database.begin("platinum-db", false);

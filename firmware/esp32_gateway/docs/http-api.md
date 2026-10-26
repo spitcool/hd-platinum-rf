@@ -17,24 +17,59 @@ of TCP 522. Setting `web=false` hides the page but leaves authenticated API acce
 
 | Method and endpoint | Body / result |
 | --- | --- |
-| `GET /api/shades` | `shades[]` with `id`, `room_id`, `room`, `name`, `position`, `observed_position`, `enabled`, `features`; also status fields. |
+| `GET /api/shades` | `shades[]` with identity/name/product, compatibility primary-position fields, grants, backend support and per-feature `controls[]`; see below. |
 | `GET /api/rooms` | `rooms[]`: ID, name, product code. |
 | `GET /api/scenes` | `scenes[]`: ID, name, member shade IDs. |
 | `GET /api/inventory` | Full supported legacy snapshot in `records[]`, without connection prefixes. |
-| `GET /api/status` | Backend, busy/storage flags, delivery, service settings, latest operation ID/status. |
+| `GET /api/status` | Backend, admitted/qualified/bench feature masks, busy/storage flags, unverified delivery, `full_compatibility=false`, service settings and latest operation ID/status. |
 | `GET /api/settings` | `{ "tcp522": true, "http": true, "web": true }`. |
 | `PATCH /api/settings` | One or more boolean fields from the above object; persisted before response. No operation request ID required. |
-| `POST /api/positions` | `{ "shade": 0, "position": 128, "request_id": "unique-request-id" }`. |
+| `POST /api/positions` | One `shade` or `room`, optional `feature` (default 4), and either raw `position` 0–255 or `endpoint` `"open"`/`"close"`; also `request_id`. |
 | `POST /api/sync` | `{ "shade": 0, "request_id": "unique-request-id" }`. |
 | `POST /api/jog` | Same fields as Sync. |
 | `POST /api/scenes` | `{ "scene": 0, "request_id": "unique-request-id" }`. |
 | `POST /api/command` | `{ "command": "$dat", "request_id": "unique-request-id" }`; also supports complete setup/scene/schedule transactions from the coverage matrix. |
 
-`position` is a requested raw value 0–255, with 0 closed and 255 open for the
-primary channel. `null` means no requested value. `observed_position` is always
-`null`: radio feedback is not implemented. `features` is the explicit grant bit
-mask, not an inference from product type. `enabled` describes the primary grant;
-RF qualification and radio availability can still prevent submission.
+`position` is a requested raw byte, not a travel percentage or a universal
+open/close direction. `null` means no requested value. `observed_position` is
+always `null`; radio feedback is not implemented. `features` is the persisted
+installation grant mask. `backend_features` is the currently admitted mask;
+`native_qualified_features` and `native_bench_features` distinguish qualification
+from temporary bench permission. Backend names are `simulated`, `repeater-radio`
+and `native-radio`. All delivery remains unverified.
+
+Each shade's `controls[]` contains the supported product features among 4, 18,
+7, 19 and 10. Every entry has `feature`, `label`, `granted`, `backend_supported`,
+`available`, `requested_value`, `request_status`, `role`, `endpoint_mapping`, `open_value` and
+`close_value`. Role codes are 0 unknown, 1 lift, 2 top rail, 3 bottom rail.
+Endpoint codes are 0 unknown, 1 open at raw 0, 2 open at raw 255. Unknown endpoint
+values are `null`. Physical mappings are installation facts stored for features
+4 and 18; product codes never supply them automatically. `enabled` is the
+compatibility primary-control availability field; `position` remains its raw
+requested value. Radio readiness/busy/storage can still prevent submission.
+
+Each shade also exposes nullable `last_requested_feature`. A control's
+`request_status` is `latest`, `earlier`, `unknown_order` or `never_requested`.
+Per-feature values are request history, not simultaneous physical rail
+coordinates. Only the known latest request is emitted in the shade's LAN
+inventory `$cp` record; ambiguous migrated history emits none until a new
+request establishes order. The API does not invent companion-rail values or
+position feedback for coupled mechanisms.
+
+Raw requests may select features 4, 18, 7, 19 or 10, subject to product support,
+grants and the active backend. Feature 10 accepts only preset value 7; its motor
+meaning is unqualified. The native candidate admits only 4, 12 and 18, and
+rejects Sync/enrollment. Tilt and preset controls work in simulation only.
+An endpoint request requires a known mapping and cannot also supply `position`.
+A room request validates every member; endpoint values are resolved separately
+per shade, so different raw directions can share an Open request. It does not
+send a combined RF group mask. Unavailable controls or unknown endpoints return
+409 without a submission.
+
+Native bench images boot disarmed. Their masks can be armed for at most 60
+seconds through local USB `rf-test`; HTTP cannot open that window or create
+persisted grants. Expiry/disarm cancels remaining native packets. A packet
+already started may finish; no automatic retry follows.
 
 POST responses contain `request_id`, `status`, `backend`, `delivery`, `records[]`
 and `operation`. An accepted radio/simulation operation initially returns HTTP
@@ -71,12 +106,17 @@ curl --fail-with-body "http://$GATEWAY_IP:8077/api/shades" \
 curl --fail-with-body "http://$GATEWAY_IP:8077/api/positions" \
   -H "Authorization: Bearer $GATEWAY_TOKEN" \
   -H 'Content-Type: application/json' \
-  --data '{"shade":0,"position":128,"request_id":"shade-zero-half-0001"}'
+  --data '{"shade":0,"feature":4,"position":128,"request_id":"shade-zero-raw128-0001"}'
 
 curl --fail-with-body -X PATCH "http://$GATEWAY_IP:8077/api/settings" \
   -H "Authorization: Bearer $GATEWAY_TOKEN" \
   -H 'Content-Type: application/json' --data '{"tcp522":false}'
 ```
+
+For a mapped secondary rail, use `{"shade":0,"feature":18,"endpoint":"open",
+"request_id":"shade-zero-secondary-open-0001"}`. For a room, replace `shade`
+with `room`; do not supply both. These examples require the corresponding
+product support, mapping, grant and backend permission.
 
 Disabling HTTP returns the saved settings and closes HTTP afterward. Recover
 with USB command `services 1 1 1`. Pending operations still complete.
@@ -126,7 +166,9 @@ rest_command:
 
 Call `rest_command.platinum_position` with `shade`, `position` and a newly
 allocated `request_id` for each intended action. Preserve that ID for any retry.
-Map 0–100 percent to 0–255 with rounding if building a cover entity. Label its
-position as requested/optimistic; do not present it as sensed motor state.
+Use the selected control's verified `open_value`/`close_value` direction before
+mapping a cover percentage into a raw byte. A linear raw conversion is not a
+calibrated physical travel measurement. Leave unknown mappings as raw controls.
+Label position as requested/optimistic, not sensed motor state.
 Refresh numeric target IDs after deleting rooms or shades. A full custom cover
 integration, setup flow and durable operation history remain follow-up work.

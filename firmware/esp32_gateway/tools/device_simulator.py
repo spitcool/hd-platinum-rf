@@ -292,9 +292,10 @@ def launch(output: Path, image: Path, args, logs: Path) -> int:
         line = "import " + inventory_hex(output / "sample_inventory")
         chunks = [line[start:start + 64] for start in range(0, len(line), 64)]
         script = logs / "seed.script"
+        status_at = 3 + (len(chunks) - 1) * .025 + .1
         script.write_text("\n".join(f"{3 + index * .025:.3f} "
                           + ("serial " if index == len(chunks) - 1 else "serialraw ") + chunk
-                          for index, chunk in enumerate(chunks)) + "\n3.5 serial status\n")
+                          for index, chunk in enumerate(chunks)) + f"\n{status_at:.3f} serial status\n")
         command.extend(["--script", script])
     gui = emulator = None
     with (logs / "emulator.log").open("wb") as emulator_log, (logs / "window.log").open("wb") as window_log:

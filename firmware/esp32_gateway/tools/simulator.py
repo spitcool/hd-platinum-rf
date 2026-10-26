@@ -21,6 +21,41 @@ from urllib.parse import urlsplit
 from test_native import ROOT, choose_sdk
 
 
+def position_command(value, state):
+    """Translate the same explicit raw/endpoint request as the device adapter.
+
+    The native engine still checks product support, grants and batch admission.
+    None means an unavailable control or an unknown physical endpoint mapping.
+    """
+    room = value.get("room") is not None
+    target = value.get("room" if room else "shade")
+    if type(target) is not int or not 0 <= target < 100 or (room and value.get("shade") is not None):
+        raise ValueError("invalid shade or room")
+    feature = value.get("feature", 4)
+    if type(feature) is not int or feature not in (4, 18, 7, 19, 10):
+        raise ValueError("invalid position feature")
+    endpoint = value.get("endpoint")
+    position = value.get("position")
+    if endpoint is not None:
+        if endpoint not in ("open", "close") or position is not None:
+            raise ValueError("use either a raw position or an open/close endpoint")
+    elif type(position) is not int or not 0 <= position <= 255:
+        raise ValueError("invalid position")
+    members = [s for s in state["shades"] if s["room_id" if room else "id"] == target]
+    if not members:
+        return None
+    commands = []
+    for shade in members:
+        control = next((c for c in shade["controls"] if c["feature"] == feature), None)
+        if not control or not control["available"]:
+            return None
+        raw = control[endpoint + "_value"] if endpoint is not None else position
+        if type(raw) is not int or not 0 <= raw <= 255 or (feature == 10 and raw != 7):
+            return None
+        commands.append(f"$pss{shade['id']:02}-{feature:02}-{raw:03}-")
+    return "".join(commands) + "$rls"
+
+
 def build(directory: Path) -> Path:
     compiler, cmake = shutil.which("c++"), shutil.which("cmake")
     if not compiler or not cmake:
@@ -181,18 +216,15 @@ def handler(gateway, port):
                 if path == "/api/command":
                     command = value.get("command")
                 elif path in ("/api/positions", "/api/sync", "/api/jog"):
-                    shade = value.get("shade")
-                    if type(shade) is not int or not 0 <= shade < 100:
-                        raise ValueError("invalid shade")
                     if path == "/api/positions":
-                        position = value.get("position")
-                        if type(position) is not int or not 0 <= position <= 255:
-                            raise ValueError("invalid position")
-                        command = f"$pss{shade:02}-04-{position:03}-$rls"
-                    elif path == "/api/sync":
-                        command = f"$rsc{shade:02}-"
+                        command = position_command(value, state)
+                        if command is None:
+                            return self.reply(409, {"error": "control unavailable or endpoint mapping unknown"})
                     else:
-                        command = f"$pss{shade:02}-12-000-$rls"
+                        shade = value.get("shade")
+                        if type(shade) is not int or not 0 <= shade < 100:
+                            raise ValueError("invalid shade")
+                        command = f"$rsc{shade:02}-" if path == "/api/sync" else f"$pss{shade:02}-12-000-$rls"
                 else:
                     return self.reply(404, {"error": "not found"})
                 if not isinstance(command, str) or not 1 <= len(command) <= 1024 or any(ord(c) < 32 for c in command):

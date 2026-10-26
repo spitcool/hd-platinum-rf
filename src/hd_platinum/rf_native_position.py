@@ -48,7 +48,7 @@ class NativePositionEvent:
 
 
 @dataclass(frozen=True)
-class NativePositionPlan:
+class _NativePositionPlanCore:
     """One command/followup train with explicit initial state and phase counts.
 
     ``prior_channel`` is the RF_CH number (33, 52 or 71) before the first
@@ -66,9 +66,12 @@ class NativePositionPlan:
     slot_us: float
     config: WaveformConfig = field(init=False)
     _payloads: tuple[bytes, bytes] = field(init=False, repr=False)
+    _build_payloads = staticmethod(build_position_payloads)
+    _operation = "native_primary_position"
+    _model_note = MODEL_NOTE
 
     def __post_init__(self):
-        payloads = build_position_payloads(self.room_rf_id, self.mask, self.position)
+        payloads = self._build_payloads(self.room_rf_id, self.mask, self.position)
         object.__setattr__(self, "room_rf_id", payloads[0][:2])
         object.__setattr__(self, "mask", payloads[0][3])
         object.__setattr__(self, "position", payloads[0][4])
@@ -131,7 +134,7 @@ class NativePositionPlan:
 
         return {
             "candidate_only": True, "hardware_qualified": False,
-            "operation": "native_primary_position",
+            "operation": self._operation,
             "format": "SC16Q11 little-endian interleaved I,Q",
             "sample_rate_hz": SAMPLE_RATE_HZ, "center_hz": CENTER_HZ,
             "channels_hz": list(REMOTE_FREQUENCIES_HZ), "bit_rate_hz": 2_000_000,
@@ -152,8 +155,17 @@ class NativePositionPlan:
             "deviation_hz": self.config.deviation_hz, "gaussian_bt": self.config.gaussian_bt,
             "amplitude": self.config.amplitude, "lead_in_us": self.config.lead_in_us,
             "ramp_us": self.config.ramp_us, "pulse_samples": self.config.pulse_samples,
-            "model_note": MODEL_NOTE,
+            "model_note": self._model_note,
         }
+
+
+@dataclass(frozen=True)
+class NativePositionPlan(_NativePositionPlanCore):
+    """Primary feature-4 plan with fixed 0x50/0x32 bodies.
+
+    Initial channel, phase counts and nominal timing remain explicit caller
+    assumptions. This type cannot select secondary-rail commands.
+    """
 
 
 def build_native_position_plan(room_rf_id, mask, position, *, prior_channel,
@@ -169,6 +181,12 @@ def iter_native_position_iq_chunks(plan: NativePositionPlan, *,
     """Render bounded SC16Q11 chunks from six body/channel pulse templates."""
     if not isinstance(plan, NativePositionPlan):
         raise ValueError("plan must be a NativePositionPlan")
+    yield from _iter_native_position_iq_chunks(plan, chunk_samples=chunk_samples)
+
+
+def _iter_native_position_iq_chunks(plan: _NativePositionPlanCore, *,
+                                    chunk_samples: int) -> Iterator:
+    """Shared renderer; public entry points enforce their operation's type."""
     chunk_samples = _integer(chunk_samples, "chunk samples", 1, 4_194_304)
     np = _numpy()
     config = plan.config
@@ -211,10 +229,16 @@ def write_native_position_waveform(path: str | Path, plan: NativePositionPlan, *
     """
     if not isinstance(plan, NativePositionPlan):
         raise ValueError("plan must be a NativePositionPlan")
+    return _write_native_position_waveform(path, plan, chunk_samples=chunk_samples,
+                                           include_private=include_private)
+
+
+def _write_native_position_waveform(path, plan: _NativePositionPlanCore, *,
+                                    chunk_samples: int, include_private: bool) -> dict:
     metadata = plan.as_dict(include_private=include_private)
     chunk_samples = _integer(chunk_samples, "chunk samples", 1, 4_194_304)
     _numpy()
     artifact = _write_iq_chunks(path,
-        iter_native_position_iq_chunks(plan, chunk_samples=chunk_samples),
+        _iter_native_position_iq_chunks(plan, chunk_samples=chunk_samples),
         sample_count=plan.sample_count, overwrite=False)
     return dict(metadata, **artifact)

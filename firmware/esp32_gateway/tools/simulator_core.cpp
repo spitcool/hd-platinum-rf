@@ -140,16 +140,37 @@ struct Svg final : Canvas {
 State sampleInventory() {
   State state;
   state.mac = "020000000001";
-  state.rooms = {
-      {0, 1, 0x1234, "Living room"}, {1, 1, 0x2345, "Bedroom"}, {2, 1, 0x3456, "Office"}};
+  state.rooms = {{0, 1, 0x1234, "Bottom-up"}, {1, 2, 0x2345, "Dual rail"},
+                 {2, 3, 0x3456, "Top-down"}, {3, 6, 0x4567, "Sheers"}};
   constexpr uint32_t Position = 1u << 4;
   constexpr uint32_t Service = Position | (1u << 1) | (1u << 12);
-  state.shades = {{0, 0, 1, "East window", Service, {{4, 128}}},
-                  {1, 0, 2, "West window", Position, {{4, 255}}},
-                  {2, 1, 1, "Blackout shade", Service, {{4, 0}}},
-                  {3, 1, 2, "Sheer shade", Position, {{4, 192}}},
-                  {4, 2, 1, "Desk window", Position, {{4, 96}}},
-                  {5, 2, 2, "Side window", Position, {}}};
+  state.shades = {{0, 0, 1, "East window", Service, {{4, 128}}, {}},
+                  {1, 0, 2, "West window", Position, {{4, 255}}, {}},
+                  {2, 1, 1, "Blackout shade", Service, {{4, 0}}, {}},
+                  {3, 1, 2, "Sheer shade", Position, {{4, 192}}, {}},
+                  {4, 2, 1, "Desk window", Position, {{4, 96}}, {}},
+                  {5, 2, 2, "Side window", Position, {}, {}},
+                  {6, 3, 1, "Front sheer", Position, {{4, 128}}, {}},
+                  {7, 3, 2, "Side sheer", Position, {{4, 0}}, {}}};
+  for (auto& shade : state.shades) {
+    if (!shade.requested.empty()) shade.last_requested_feature = shade.requested.back().feature;
+    shade.enabled_features |= 1u << 10;
+    shade.controls = {{4, ControlRole::Lift, EndpointMapping::OpenAt255}};
+    if (shade.id == 2 || shade.id == 3) {
+      shade.enabled_features |= 1u << 18;
+      shade.requested.push_back({18, 64});
+      shade.last_requested_feature = 18;
+      shade.controls = {{4, ControlRole::BottomRail, EndpointMapping::OpenAt255},
+                         {18, ControlRole::TopRail, EndpointMapping::OpenAt255}};
+    } else if (shade.id == 4 || shade.id == 5)
+      shade.controls = {{4, ControlRole::TopRail, EndpointMapping::OpenAtZero}};
+    else if (shade.id == 6 || shade.id == 7) {
+      shade.enabled_features |= (1u << 7) | (1u << 19);
+      shade.requested.push_back({7, 128});
+      shade.requested.push_back({19, 128});
+      shade.last_requested_feature = 19;
+    }
+  }
   return state;
 }
 
@@ -206,7 +227,8 @@ class Simulator {
       if (!first)
         out << ',';
       first = false;
-      out << "{\"id\":" << unsigned(room.id) << ",\"name\":" << jsonString(room.name) << '}';
+      out << "{\"id\":" << unsigned(room.id) << ",\"name\":" << jsonString(room.name)
+          << ",\"product\":" << unsigned(room.product) << '}';
     }
     out << "],\"shades\":[";
     first = true;
@@ -222,14 +244,45 @@ class Simulator {
       out << "{\"id\":" << unsigned(shade.id) << ",\"room_id\":" << unsigned(shade.room)
           << ",\"room\":" << jsonString(room) << ",\"name\":" << jsonString(shade.name)
           << ",\"enabled\":" << ((shade.enabled_features & (1u << 4)) ? "true" : "false")
-          << ",\"features\":" << shade.enabled_features << ",\"position\":";
+          << ",\"features\":" << shade.enabled_features
+          << ",\"product\":" << unsigned(state.rooms[shade.room].product)
+          << ",\"observed_position\":null,\"position\":";
       if (position < 0)
         out << "null";
       else
         out << position;
-      out << '}';
+      out << ",\"last_requested_feature\":";
+      if (shade.last_requested_feature) out << unsigned(*shade.last_requested_feature);
+      else out << "null";
+      out << ",\"controls\":[";
+      bool firstControl = true;
+      for (uint8_t f : {4, 18, 7, 19, 10}) {
+        if (!productSupportsFeature(state.rooms[shade.room].product, f)) continue;
+        if (!firstControl) out << ',';
+        firstControl = false;
+        const auto mapping = controlMapping(shade, f);
+        out << "{\"feature\":" << unsigned(f) << ",\"label\":" << jsonString(controlLabel(shade, f))
+            << ",\"granted\":" << ((shade.enabled_features & (1u << f)) ? "true" : "false")
+            << ",\"available\":" << (featureAvailable(state, shade, f) ? "true" : "false")
+            << ",\"backend_supported\":true,\"role\":" << unsigned(mapping.role)
+            << ",\"endpoint_mapping\":" << unsigned(mapping.endpoints) << ",\"requested_value\":";
+        int requested = -1;
+        for (const auto& p : shade.requested) if (p.feature == f) requested = p.value;
+        if (requested < 0) out << "null"; else out << requested;
+        out << ",\"request_status\":" << jsonString(requested < 0 ? "never_requested" :
+            !shade.last_requested_feature ? "unknown_order" :
+            isLatestRequestedFeature(shade, f) ? "latest" : "earlier");
+        uint8_t value;
+        out << ",\"open_value\":";
+        if (endpointValue(shade, f, true, value)) out << unsigned(value); else out << "null";
+        out << ",\"close_value\":";
+        if (endpointValue(shade, f, false, value)) out << unsigned(value); else out << "null";
+        out << '}';
+      }
+      out << "]}";
     }
-    out << "],\"busy\":" << (engine_->busy() ? "true" : "false")
+    out << "],\"backend_features\":" << KnownFeatureMask
+        << ",\"busy\":" << (engine_->busy() ? "true" : "false")
         << ",\"status\":" << jsonString(status_) << ",\"events\":[";
     first = true;
     for (const auto& event : events_) {

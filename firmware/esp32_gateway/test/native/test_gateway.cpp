@@ -356,6 +356,74 @@ void transaction_preview() {
   assert(f.submissions.empty() && f.saves == saved && encodeState(f.engine.state()) == before);
 }
 
+void latest_request_is_not_history_insertion_order() {
+  Fixture f;
+  Session session;
+  f.send(session, "$ar2-4-Dual$as0-5-Shade");
+  f.grant((1u << 4) | (1u << 18));
+  assert(f.engine.state().shades[0].requested.empty());
+  assert(!lastRequestedPosition(f.engine.state().shades[0]));
+  for (const auto& request : std::vector<Position>{{4, 127}, {18, 63}, {4, 128}}) {
+    const auto prior = encodeState(f.engine.state());
+    const auto staged = "$pss0-" + std::to_string(request.feature) + "-" +
+                        std::to_string(request.value) + "-";
+    assert(contains(f.send(session, staged), "$done"));
+    assert(encodeState(f.engine.state()) == prior); // Staging is not a command.
+    assert(contains(f.send(session, "$rls"), "$act01-00-"));
+    f.engine.complete(true);
+    const auto* latest = lastRequestedPosition(f.engine.state().shades[0]);
+    assert(latest && latest->feature == request.feature && latest->value == request.value);
+    unsigned positionRecords = 0;
+    for (const auto& record : f.engine.snapshot())
+      positionRecords += record.payload.rfind("$cp00-", 0) == 0;
+    assert(positionRecords == 1);
+  }
+  assert(contains(f.engine.snapshot(), "$cp00-04-128-"));
+  assert(!contains(f.engine.snapshot(), "$cp00-18-063-"));
+  assert(f.engine.state().shades[0].requested.size() == 2);
+  assert(f.engine.state().shades[0].requested[1].value == 63); // Preserve history.
+  State restored;
+  assert(decodeState(encodeState(f.durable), restored));
+  Engine reboot(restored);
+  assert(contains(reboot.snapshot(), "$cp00-04-128-"));
+  assert(!contains(reboot.snapshot(), "$cp00-18-063-"));
+
+  // Failed durable acceptance must leave both history and chronology unchanged.
+  const auto before = encodeState(f.engine.state());
+  f.send(session, "$pss0-18-064-");
+  f.save = false;
+  assert(contains(f.send(session, "$rls"), "$error94-"));
+  assert(encodeState(f.engine.state()) == before && !f.engine.busy());
+  f.save = true;
+
+  // A room request is all-or-nothing even if one member could accept it.
+  f.send(session, "$as0-5-Other");
+  auto state = f.engine.state();
+  state.shades[1].enabled_features = 1u << 4;
+  assert(f.engine.replace(state));
+  const auto roomBefore = encodeState(f.engine.state());
+  const auto submitted = f.submissions.size();
+  assert(contains(f.send(session, "$psr0-18-064-0-"), "$error92-"));
+  assert(encodeState(f.engine.state()) == roomBefore && f.submissions.size() == submitted);
+
+  // Rename retains command history; a new binding/product does not.
+  f.send(session, "$mes0-0-7-Renamed");
+  assert(isLatestRequestedFeature(f.engine.state().shades[0], 4));
+  f.send(session, "$mer0-1-4-Lift");
+  assert(f.engine.state().shades[0].requested.empty());
+  assert(!f.engine.state().shades[0].last_requested_feature);
+
+  auto imported = restored;
+  assert(f.engine.replace(imported));
+  assert(contains(f.engine.snapshot(), "$cp00-04-128-"));
+  imported.shades[0].last_requested_feature = 7; // No matching history record.
+  const auto validBefore = encodeState(f.engine.state());
+  assert(!f.engine.replace(imported));
+  assert(encodeState(f.engine.state()) == validBefore);
+  assert(f.engine.replace(State{}));
+  assert(f.engine.state().shades.empty());
+}
+
 }  // namespace
 int main() {
   parser_fragments();
@@ -368,5 +436,6 @@ int main() {
   capacity_and_replay();
   malformed_corpus();
   transaction_preview();
+  latest_request_is_not_history_insertion_order();
   std::cout << "gateway native tests passed\n";
 }

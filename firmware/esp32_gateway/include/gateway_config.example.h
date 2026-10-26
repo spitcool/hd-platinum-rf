@@ -18,4 +18,10 @@
 // Simulation only by default; simulated commands never assert delivery.
 #define GATEWAY_RF_ENABLED false
 #define GATEWAY_RF_QUALIFIED false
+// Native direct-to-shade transport is separate from the original repeater experiment.
+#define GATEWAY_RF_NATIVE false
+// A native bench build starts disarmed; USB rf-test opens a 60-second window.
+#define GATEWAY_RF_BENCH false
+// Per-feature physical NiceRF qualification, independent of shade grants.
+#define GATEWAY_RF_NATIVE_QUALIFIED_FEATURES 0u
 // Initial sequence is provisioned via USB serial, never reset on normal boot.

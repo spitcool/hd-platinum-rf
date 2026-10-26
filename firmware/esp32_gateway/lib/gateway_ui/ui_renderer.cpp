@@ -72,9 +72,19 @@ void list(Canvas& canvas, const View& view) {
 void detail(Canvas& canvas, const View& view) {
   button(canvas, layout::Back, "Back", true);
   status(canvas, view);
-  centered(canvas, {6, 46, 308, 38}, view.title, Font::Title, Ink);
-  button(canvas, layout::Open, "Open", view.controls_enabled, Green, Font::Title);
-  button(canvas, layout::Close, "Close", view.controls_enabled, Accent, Font::Title);
+  centered(canvas, {6, 35, 308, 32}, view.title, Font::Title, Ink);
+  button(canvas, layout::FeaturePrevious, "<", view.feature_navigation);
+  button(canvas, layout::FeatureNext, ">", view.feature_navigation);
+  centered(canvas, {48, 72, 224, 28}, view.control_label + " (" + std::to_string(view.feature) + ")",
+           Font::Body, Ink);
+  button(canvas, layout::Open, view.first_caption, view.controls_enabled, Green, Font::Title);
+  if (!view.second_caption.empty())
+    button(canvas, layout::Close, view.second_caption, view.second_enabled, Accent, Font::Title);
+  if (view.feature != 10) {
+    button(canvas, layout::Decrease, "-", view.raw_controls_enabled && view.raw_value > 0);
+    button(canvas, layout::Increase, "+", view.raw_controls_enabled && view.raw_value < 255);
+    button(canvas, layout::Apply, "Set raw " + std::to_string(view.raw_value), view.raw_controls_enabled);
+  }
 
   if (view.message.empty())
     return;

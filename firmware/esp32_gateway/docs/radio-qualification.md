@@ -5,89 +5,147 @@ SPDX-License-Identifier: CC-BY-SA-4.0 OR AGPL-3.0-or-later
 
 # Packet-radio implementation and qualification
 
-The RF2401F20 driver is an experiment for the revision-A carrier. It has not
-been run on the physical stack or demonstrated with a shade. Native tests
-exercise its register transactions through a fake SPI interface; they do not
-establish emitted framing, RF timing, enrollment, or receiver acceptance.
-The independent implementation follows the factual interfaces recorded in the
-[carrier contract](../../../hardware/design/firmware-contract.md) and the
-[RF findings](../../../docs/rf-protocol.md).
+The revision-A CoreS3/NiceRF appliance is unassembled. Its RF2401F20 driver has
+not been flashed onto that stack, captured over the air, or demonstrated with a
+shade. SDR results establish separate protocol evidence; they do not qualify
+this packet radio. The implementation has two explicit routes, with no automatic
+fallback between them.
 
 ## Hardware ownership
 
-`ArduinoIo` owns an explicit `SPIClass(HSPI)` on SCK6/MOSI5/MISO8 with CSN18,
-CE17 and IRQ10. Every transaction uses that instance, SPI mode 0 and 1 MHz.
-The network/display bus is separate. The application must establish USB power
-and the carrier supply before calling `Radio::begin`; `Radio::shutdown` powers
-the transceiver down and releases its GPIOs before the application removes the
-supply. There is no GPIO-controlled carrier regulator enable on revision A.
+`ArduinoIo` owns `SPIClass(HSPI)`, mode 0, on SCK6/MOSI5/MISO8 with CSN18,
+CE17 and IRQ10. Startup and repeater transactions use 1 MHz. A finite native
+train owns one 8 MHz SPI transaction and transfers each command plus data in one
+hardware call. Registers and addresses are checked again at that faster clock
+before CE. This avoids repeated transaction/per-byte overhead, but does not
+establish signal integrity or actual timing on the carrier.
 
-The driver does not use the IRQ pin to trigger ISR work. It polls STATUS with a
-finite deadline in its owning worker task. `begin`, `transmit` and `shutdown`
-must never run concurrently. RF power defaults to level 0, and level 3 is
-rejected because the selected module permits at most level 2. These levels are
-not claims about the PA module's conducted output power.
+The network/display bus is separate. The application establishes USB power and
+the carrier supply before `Radio::begin`; `Radio::shutdown` powers down the radio
+and releases its GPIOs before supply removal. Revision A has no software
+regulator-enable pin. The IRQ pin is not an ISR source; the owner polls STATUS
+with a deadline. Module power defaults to 0 and setting 3 is rejected. Settings
+are not bare-chip or measured module dBm claims.
 
-## Explicit register experiments
+## Repeater route: 2440 MHz / 250 kbps
 
-Common configuration is address width 3, channel 40, 250 kbps, address
-`e7 e7 e7`, two-byte CRC, dynamic payloads on pipe 0, RX width 0, FEATURE=4,
-DYNPD=1, and SETUP_RETR=0. Both receive and transmit address registers are
-written and read back. Startup verifies the programmed registers and empty
-FIFOs, sets CONFIG=0x0e, and waits 5 ms while keeping CE low.
+This existing route uses three-byte address `e7 e7 e7`, CRC16, dynamic payloads,
+pipe 0, RX width 0, FEATURE=4, DYNPD=1 and SETUP_RETR=0. Both address registers
+and the profile are verified. Startup sets CONFIG=0x0e and waits 5 ms with CE low.
 
 | Recipe | EN_AA | Purpose |
 | --- | ---: | --- |
-| `EsbNoRetry` | 1 | Request ACKs to retain Enhanced ShockBurst framing, with zero retransmissions. Missing ACKs are counted; MAX_RT payloads are deliberately flushed. |
-| `OriginalRegisterExperiment` | 0 | Compare the original gateway's observed auto-ACK setting. This is an alternative experiment, not an asserted reproduction of the entire original register profile. |
+| `EsbNoRetry` | 1 | Request ACKs to retain ESB, with zero retries; count missing ACKs and flush MAX_RT payloads. |
+| `OriginalRegisterExperiment` | 0 | Separate original-register experiment; may change the packet framing. |
 
-The second recipe can select legacy ShockBurst framing on Nordic hardware.
-Neither recipe has an RF capture proving the required nine-bit PCF and NO_ACK=0.
-The radio itself generates preamble, PCF, CRC and PID: the application cannot
-explicitly assign each PID. Native PID continuation across jobs may differ from
-the reference's per-burst PID sequence. Measure it, including after flushes,
-timeouts, resets and repeated payloads. Consult the
-[Nordic nRF24L01+ specification](https://docs.nordicsemi.com/bundle/nRF24L01P_PS_v1.0/resource/nRF24L01P_PS_v1.0.pdf)
-for the packet-engine and compatibility modes.
+Neither recipe has been RF-qualified on this module. The required repeater
+reference has a nine-bit PCF; the radio generates its PCF/PID/CRC rather than
+accepting a complete SDR frame as FIFO data.
 
-## Finite command submission
+Position, Sync and Jog require the global repeater enable/qualification flags
+and the explicit shade grant. A transaction sends ten alternating 12-byte
+command and nine-byte sequence payloads. Its ordinal is durably reserved before
+submission, remains consumed after failure, and stops at exhaustion. Inventory
+imports do not replace the independent sequence store.
 
-Position, Sync and Jog have independent application grants. The driver also
-requires the global enabled and qualified flags and the command's explicit
-operation grant. A failed gate produces no CE pulse. Payload encoding has no
-side effects and is usable while radio transmission is disabled.
+The existing loop retains its 112.134 ms duration, nominal 130 µs CE-to-preamble
+adjustment, 500 µs lateness guard and 3 ms completion deadline. These are software
+parameters, not measured recipient tolerances. It cannot directly reproduce the
+SDR's 54 µs carrier lead. There are no automatic retries.
 
-A transaction sends ten alternating 12-byte command and nine-byte sequence
-payloads. The local ordinal is reserved and durably verified before submission;
-the sequence payload contains command count 1 and only the ordinal's low byte.
-The 16-bit local allocation exhausts after 65535 rather than silently wrapping.
-Gateway inventory imports do not contain or replace this sequence store.
+## Native route: candidate 2 Mbps per-packet rotation
 
-CE targets use the reference's fractional preamble timestamps, rounded up to
-microseconds with a nominal 130 µs transmit-settling adjustment. The native
-radio does not reproduce the SDR's explicitly synthesized 54 µs carrier lead.
-A deadline missed by more than 500 µs aborts the experiment; that threshold is
-an implementation guard, not a measured recipient tolerance. A successful
-submission retains the reference's 112134 µs total duration, including trailing
-quiet time. Each packet gets one CE pulse and a 3 ms completion deadline. There
-are no application retries. A timeout, invalid status or missed deadline
-powers down the radio and requires reinitialization.
+The native profile requests static five-byte payloads, three-byte address
+`e7 e7 e7`, CRC16, EN_AA=0, ARC=0, DYNPD=0 and FEATURE=0 at 2 Mbps. Channels
+rotate 33 → 52 → 71 before every packet, including phase boundaries.
 
-`submitted_unconfirmed` means a finite packet submission ended, including an
-expected missing ACK under the ESB experiment. It does not mean a repeater or
-shade accepted the message. This driver does not yet receive reply packets,
-listen for handheld commands, implement native 2 Mbps channel hopping, or
-complete enrollment. The half-duplex module cannot reproduce the SDR backend's
-simultaneous receive capture during its own transmission.
+| Operation | Command body after two-byte identity | Followup body after identity |
+| --- | --- | --- |
+| Primary feature 4 | `50 mask value` | `32 mask value` |
+| Secondary feature 18 (hex `12`) | `6D mask value` | `32 mask value` |
+| Jog feature 12 | Alternates `6A mask 01` and `20 mask 6A` | `32 mask 01` |
+
+Jog follows the checked decrement-before-CE refresh behavior: initial alternate
+blocks contain 19 or 99 packets, then 20/100. Primary and secondary position
+retain their values and do not use Jog alternation. The constant-memory planner
+requires explicit prior channel/alternate, both phase counts and a 401-half-µs
+slot; it rejects plans longer than two seconds. It models idle entry in phase 2,
+without the original active-timer prelude.
+
+The current application profile is prior channel 71, prior alternate 0,
+7,500 command plus 1,500 followup packets: 9,000 packets over a nominal 1.8045 s.
+These explicit diagnostic assumptions match the selected SDR trials; they are
+not measured universal counts or a complete original scheduler emulation.
+Native Sync is rejected. Enrollment needs a distinct longer held/tail lifecycle,
+cancellation and subsequent fresh-binding tests; it cannot inherit this short
+control train. Features 7, 19 and 10 have no physical implementation.
+
+### Framing is an open hardware question
+
+[Nordic's nRF24L01+ Product Specification v1.0](https://www.sparkfun.com/datasheets/Wireless/Nordic/nRF24L01P_Product_Specification_1_0.pdf)
+§7.9 documents no-PCF legacy interoperability with EN_AA=0 and ARC=0 at 1 Mbps
+or 250 kbps. It does not guarantee the required 2 Mbps, 88-bit frame on this
+module. This does not prove that the candidate is impossible either. Community
+remote-register evidence and original/SDR RF captures do not identify the
+NiceRF packet engine's behavior. Capture the actual output and distinguish
+88-bit no-PCF from 97-bit ESB before marking any operation qualified. Disabling
+CRC or packing a frame into the payload is not an established workaround for
+inserted PCF/PID bits.
+
+The same specification permits SPI up to 10 MHz (§8), a 130 µs standby-to-TX
+interval and a minimum 10 µs CE pulse (table 16). The driver selects 8 MHz and
+10 µs CE pulses. Each target is individually rounded from the absolute 200.5 µs
+grid to whole microseconds, with at most 0.5 µs rounding and no accumulated
+rounding drift. Targets are CE edges, not measured RF preambles.
+
+A delay greater than 5 µs aborts before another CE; completion must be observed
+within 190 µs of the pulse's software timestamp. No queued multi-packet burst
+or FIFO reuse is used. Retuning follows completion and FIFO-empty checks.
+The SPI/CPU margin is small, and preemption between checking a deadline and
+asserting GPIO remains possible. Fake timing tests are not a hardware deadline
+guarantee. Real CE/channel/status/RF timing must be checked under network load.
+
+## Bench admission, cancellation and results
+
+Ordinary images default to simulation. `cores3_native_test` and
+`cores3_ethernet_native_test` explicitly select the candidate and force native
+qualification bits to zero. They boot with no admitted RF features even if a
+saved inventory contains grants. USB `rf-test FEATURE_BITMASK` opens an admission
+window of at most 60 seconds for supported bits 4, 12 and 18; persisted shade
+grants are independently required. `rf-test 0` disarms. Rearming while busy is
+rejected, and expiry/disarm is checked during a train.
+
+The driver separately represents `Disabled`, `Bench` and `Qualified` access
+for each operation. Bench completion returns `bench_submitted_unqualified`;
+qualification cannot be inferred from submission. Production qualification is
+an explicit per-feature configuration, initially empty. Native transmission has
+no repeater ordinal argument or sequence-store requirement.
+
+Cancellation is latched when observed. No further packet is admitted after
+that observation, although a packet already started may finish. Cancellation,
+invalid status, timeout or missed deadline
+clears the FIFO, powers down the source and requires reinitialization. A failed
+operation is not retried. Success means submission only: neither TX_DS nor a
+LAN completion record establishes motion, position or enrollment. There is no
+handheld receiver/feedback implementation. The half-duplex module cannot capture
+its own transmission simultaneously. The USB diagnostic line records shade,
+feature, result, submitted frame count and maximum observed lateness in
+microseconds. Keep it with the independent receiver trace; it is not an RF
+measurement.
 
 ## Required physical evidence
 
 Complete the [hardware acceptance procedure](../../../hardware/manufacturing/acceptance-test.md)
-with the exact firmware, module and antenna. Capture startup rails and GPIOs;
-verify channel/rate/address/PCF/CRC, 9/12-byte lengths, PID, packet order,
-CE-to-preamble delay, absence of retransmissions, and cadence over consecutive
-jobs. Confirm behavior under network activity and interrupted power. Prefer
-the wired configuration for first RF qualification: the CoreS3's co-located
-Wi-Fi transmitter introduces another 2.4 GHz source and scheduling load.
-Do not mark the qualified flag true merely because compilation or native tests
-pass.
+on the assembled module, carrier and final antenna. Start with protected,
+independent reception of a bounded fictional-identity packet. Check profile
+readback at both SPI speeds, emitted rate/address/framing/CRC, pulse timing,
+absence of retries, output setting and rail transients. Then qualify a finite
+three-channel train, cancellation, repeated jobs, faults and interrupted power.
+A successful register read or build is insufficient.
+
+Use the wired image initially to separate the CoreS3's co-located Wi-Fi source
+from the radio experiment. Preserve original packet/receiver records and log
+all missed deadlines. Only after those checks should watched shade operations
+establish per-feature acceptance, including target isolation and physical rail
+mapping. Follow the broader [RF validation plan](../../../docs/rf-validation-plan.md)
+for enrollment and remaining product families.

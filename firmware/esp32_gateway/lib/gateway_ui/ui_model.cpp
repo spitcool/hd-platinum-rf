@@ -21,8 +21,11 @@ const Room* roomWithId(const State& state, uint8_t id) {
       return &room;
   return nullptr;
 }
-bool granted(const State& state, const Shade& shade) {
-  return roomWithId(state, shade.room) != nullptr && (shade.enabled_features & (1u << 4));
+bool granted(const State& state, const Shade& shade, uint32_t backend) {
+  for (uint8_t f : {4, 18, 7, 19, 10})
+    if (featureAvailable(state, shade, f, backend))
+      return true;
+  return false;
 }
 bool movedTooFar(int x, int y, int start_x, int start_y) {
   const int64_t dx = int64_t(x) - start_x, dy = int64_t(y) - start_y;
@@ -35,7 +38,7 @@ size_t members(const State& state, uint8_t room) {
       ++count;
   return count;
 }
-bool roomGranted(const State& state, uint8_t room) {
+bool roomGranted(const State& state, uint8_t room, uint32_t backend) {
   if (!roomWithId(state, room))
     return false;
   bool found = false;
@@ -43,7 +46,7 @@ bool roomGranted(const State& state, uint8_t room) {
     if (shade.room != room)
       continue;
     found = true;
-    if (!granted(state, shade))
+    if (!granted(state, shade, backend))
       return false;
   }
   return found;
@@ -81,15 +84,59 @@ void Model::sync(const State& state) {
     ++revision_;
   }
 }
-bool Model::eligible(const State& state) const {
-  if (tab_ == Tab::Groups)
-    return roomGranted(state, selected_);
+bool Model::eligible(const State& state, const Runtime& runtime) const {
+  if (tab_ == Tab::Groups) {
+    bool found = false;
+    for (const auto& shade : state.shades) {
+      if (shade.room != selected_)
+        continue;
+      found = true;
+      if (!featureAvailable(state, shade, feature_, runtime.backend_features))
+        return false;
+    }
+    return found;
+  }
   const auto* shade = shadeWithId(state, selected_);
-  return shade && granted(state, *shade);
+  return shade && featureAvailable(state, *shade, feature_, runtime.backend_features);
+}
+std::vector<uint8_t> Model::features(const State& state) const {
+  const auto* shade = tab_ == Tab::Shades ? shadeWithId(state, selected_) : nullptr;
+  const auto* room = roomWithId(state, shade ? shade->room : selected_);
+  std::vector<uint8_t> result;
+  if (room)
+    for (uint8_t f : {4, 18, 7, 19, 10})
+      if (productSupportsFeature(room->product, f))
+        result.push_back(f);
+  return result;
+}
+void Model::selectFeature(const State& state, uint8_t f) {
+  feature_ = f;
+  raw_value_ = f == 10 ? 7 : 128;
+  // A group has no single requested position. A shade's initial editor value
+  // is its last request, never a measurement or inferred physical position.
+  if (tab_ == Tab::Shades) {
+    const auto* shade = shadeWithId(state, selected_);
+    if (shade)
+      for (const auto& p : shade->requested)
+        if (p.feature == f)
+          raw_value_ = p.value;
+  }
+}
+bool Model::endpointsMapped(const State& state) const {
+  bool found = false;
+  for (const auto& shade : state.shades) {
+    if (tab_ == Tab::Groups ? shade.room != selected_ : shade.id != selected_)
+      continue;
+    uint8_t value;
+    found = true;
+    if (!endpointValue(shade, feature_, true, value))
+      return false;
+  }
+  return found;
 }
 bool Model::canControl(const State& state, const Runtime& runtime) const {
   return screen_ == Screen::Detail && runtime.storage_ok && runtime.backend_ready &&
-         !runtime.busy && eligible(state);
+         !runtime.busy && eligible(state, runtime);
 }
 View Model::view(const State& state, const Runtime& runtime) {
   sync(state);
@@ -116,24 +163,51 @@ View Model::view(const State& state, const Runtime& runtime) {
         row.id = shade.id;
         row.name = shade.name;
         row.count = 1;
-        row.enabled = granted(state, shade);
+        row.enabled = granted(state, shade, runtime.backend_features);
       } else {
         const auto& room = state.rooms[index];
         row.id = room.id;
         row.name = room.name;
         row.count = members(state, room.id);
-        row.enabled = roomGranted(state, room.id);
+        row.enabled = roomGranted(state, room.id, runtime.backend_features);
       }
       result.rows.push_back(std::move(row));
     }
     return result;
   }
   result.controls_enabled = canControl(state, runtime);
+  result.feature = feature_;
+  result.raw_value = raw_value_;
+  result.feature_navigation = features(state).size() > 1 && !runtime.busy;
+  result.raw_controls_enabled = result.controls_enabled && feature_ != 10;
+  result.second_enabled = result.raw_controls_enabled;
+  Shade unknown;
+  result.control_label = controlLabel(unknown, feature_);
+  if (feature_ == 10) {
+    result.first_caption = "Preset 7";
+    result.second_caption.clear();
+  } else if (endpointsMapped(state)) {
+    result.first_caption = "Open";
+    result.second_caption = "Close";
+  }
   if (tab_ == Tab::Shades) {
     const auto* shade = shadeWithId(state, selected_);
     if (shade) {
       result.title = shade->name;
       result.member_count = 1;
+      result.control_label = controlLabel(*shade, feature_);
+      if (result.message.empty()) {
+        result.message = "No request history";
+        for (const auto& position : shade->requested)
+          if (position.feature == feature_) {
+            result.message = isLatestRequestedFeature(*shade, feature_)
+                                 ? "Last command: raw "
+                             : shade->last_requested_feature ? "Earlier request: raw "
+                                                             : "History (order unknown): ";
+            result.message += std::to_string(position.value);
+            break;
+          }
+      }
     }
   } else {
     const auto* room = roomWithId(state, selected_);
@@ -149,9 +223,9 @@ View Model::view(const State& state, const Runtime& runtime) {
   } else if (runtime.busy) {
     result.message = "Command in progress...";
     result.message_error = false;
-  } else if (!eligible(state)) {
+  } else if (!eligible(state, runtime)) {
     result.message =
-        tab_ == Tab::Groups ? "Enable every shade in this group" : "Position control disabled";
+        tab_ == Tab::Groups ? "Feature unavailable for this group" : "Feature unavailable";
     if (result.member_count == 0)
       result.message = "No shades in this group";
     result.message_error = true;
@@ -164,11 +238,20 @@ Model::Hit Model::hit(int x, int y, const State& state, const Runtime& runtime) 
   if (screen_ == Screen::Detail) {
     if (layout::Back.contains(x, y))
       return Hit::Back;
+    if (!runtime.busy && features(state).size() > 1) {
+      if (layout::FeaturePrevious.contains(x, y)) return Hit::FeaturePrevious;
+      if (layout::FeatureNext.contains(x, y)) return Hit::FeatureNext;
+    }
     if (canControl(state, runtime)) {
       if (layout::Open.contains(x, y))
         return Hit::Open;
-      if (layout::Close.contains(x, y))
+      if (feature_ != 10 && layout::Close.contains(x, y))
         return Hit::Close;
+      if (feature_ != 10) {
+        if (layout::Decrease.contains(x, y) && raw_value_ > 0) return Hit::Decrease;
+        if (layout::Increase.contains(x, y) && raw_value_ < 255) return Hit::Increase;
+        if (layout::Apply.contains(x, y)) return Hit::Apply;
+      }
     }
     return Hit::None;
   }
@@ -200,15 +283,41 @@ void Model::cancelTouch() {
   wait_for_release_ = true;
 }
 std::string Model::activate(Hit target, const State& state, const Runtime& runtime) {
-  if (target == Hit::Open || target == Hit::Close) {
+  if (target == Hit::FeaturePrevious || target == Hit::FeatureNext) {
+    if (runtime.busy) return {};
+    const auto available = features(state);
+    auto it = std::find(available.begin(), available.end(), feature_);
+    if (it == available.end() || available.empty()) return {};
+    size_t index = size_t(it - available.begin());
+    index = (index + (target == Hit::FeatureNext ? 1 : available.size() - 1)) % available.size();
+    selectFeature(state, available[index]);
+    feedback("");
+    ++revision_;
+    return {};
+  }
+  if (target == Hit::Decrease || target == Hit::Increase) {
+    if (!canControl(state, runtime) || feature_ == 10) return {};
+    if (target == Hit::Decrease && raw_value_ > 0) --raw_value_;
+    if (target == Hit::Increase && raw_value_ < 255) ++raw_value_;
+    feedback("");
+    ++revision_;
+    return {};
+  }
+  if (target == Hit::Open || target == Hit::Close || target == Hit::Apply) {
     if (!canControl(state, runtime))
       return {};
-    char command[48];
-    unsigned value = target == Hit::Open ? 255 : 0;
-    if (tab_ == Tab::Shades)
-      std::snprintf(command, sizeof(command), "$pss%02u-04-%03u-$rls", selected_, value);
+    const bool group = tab_ == Tab::Groups;
+    std::string command;
+    if (feature_ == 10)
+      command = rawControlTransaction(state, selected_, group, feature_, 7, runtime.backend_features);
+    else if (target != Hit::Apply && endpointsMapped(state))
+      command = endpointTransaction(state, selected_, group, feature_, target == Hit::Open,
+                                    runtime.backend_features);
     else
-      std::snprintf(command, sizeof(command), "$psr%u-4-%u-0-", selected_, value);
+      command = rawControlTransaction(state, selected_, group, feature_,
+                                       target == Hit::Apply ? raw_value_ : target == Hit::Open ? 255 : 0,
+                                       runtime.backend_features);
+    if (command.empty()) return {};
     feedback("Submitting request...");
     return command;
   }
@@ -234,6 +343,7 @@ std::string Model::activate(Hit target, const State& state, const Runtime& runti
     if (index >= count(state))
       return {};
     selected_ = tab_ == Tab::Shades ? state.shades[index].id : state.rooms[index].id;
+    selectFeature(state, 4);
     screen_ = Screen::Detail;
   }
   feedback("");
@@ -260,7 +370,9 @@ std::string Model::touch(bool down, int x, int y, const State& state, const Runt
       pressed_revision_ = revision_;
     } else {
       if (movedTooFar(x, y, pressed_x_, pressed_y_) || pressed_revision_ != revision_ ||
-          ((pressed_ == Hit::Open || pressed_ == Hit::Close) && !canControl(state, runtime)))
+          ((pressed_ == Hit::Open || pressed_ == Hit::Close || pressed_ == Hit::Apply ||
+            pressed_ == Hit::Decrease || pressed_ == Hit::Increase) && !canControl(state, runtime)) ||
+          ((pressed_ == Hit::FeaturePrevious || pressed_ == Hit::FeatureNext) && runtime.busy))
         cancelTouch();
     }
     return {};
