@@ -21,6 +21,7 @@ REMOTE_DATA_RATE = 2_000_000
 REMOTE_ADDRESS = bytes.fromhex("e7e7e7")
 REMOTE_PAYLOAD_LENGTH = 5
 REMOTE_MODE_GROUP = 0x20
+REMOTE_MODE_WAKE = 0x01
 
 ACTION_CODES = {
     "release-up": 0x21,
@@ -93,6 +94,12 @@ class RemoteCommand:
 
     @property
     def action(self) -> str:
+        # The wake interpretation is specific to no-group mode, not every 80.
+        if self.mode == REMOTE_MODE_WAKE and self.group_mask == 0:
+            if self.action_code == 0x80:
+                return "wake"
+            if self.action_code == 0:
+                return "release-wake"
         return ACTION_NAMES.get(self.action_code, f"unknown-0x{self.action_code:02x}")
 
     @property
@@ -147,6 +154,15 @@ def build_remote_payload(
         group_mask=groups_to_mask(groups),
         action_code=action_code,
     ).to_bytes()
+
+
+def build_wake_payload(remote_id: str | bytes | bytearray) -> bytes:
+    """Build the externally observed RF enable for IR, for RF-only experiments.
+
+    HD_Remote_Clone c36fbbb identifies ID 01 00 80. Acceptance before native
+    bridge commands, and its required identity/duration, are unverified.
+    """
+    return parse_remote_id(remote_id) + bytes((REMOTE_MODE_WAKE, 0, 0x80))
 
 
 def decode_remote_payload(payload: bytes | bytearray | str) -> RemoteCommand:

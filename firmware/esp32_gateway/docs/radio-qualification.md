@@ -82,6 +82,11 @@ control train. Features 7, 19 and 10 have no physical implementation.
 
 ### Framing is an open hardware question
 
+The external `HD_Remote_Clone` project independently reports shade acceptance
+with a commodity nRF24-style radio at the handheld settings. See the
+[pinned source and evidence scope](../../../docs/rf-wake-experiments.md).
+That is useful corroboration, not a measurement of this module's packet engine.
+
 [Nordic's nRF24L01+ Product Specification v1.0](https://www.sparkfun.com/datasheets/Wireless/Nordic/nRF24L01P_Product_Specification_1_0.pdf)
 §7.9 documents no-PCF legacy interoperability with EN_AA=0 and ARC=0 at 1 Mbps
 or 250 kbps. It does not guarantee the required 2 Mbps, 88-bit frame on this
@@ -104,6 +109,37 @@ or FIFO reuse is used. Retuning follows completion and FIFO-empty checks.
 The SPI/CPU margin is small, and preemption between checking a deadline and
 asserting GPIO remains possible. Fake timing tests are not a hardware deadline
 guarantee. Real CE/channel/status/RF timing must be checked under network load.
+
+### Optional wake preparation
+
+Primary-position bench trains can prepend the externally identified
+`room-ID 01 00 80` RF wake or equal-length copies of the primary command as an
+airtime control. This is separate from the original active-timer prelude and
+does not implement IR. Both use whole three-channel cycles and continuous
+200.5 µs slots. The unchanged command and followup follow without a new gap.
+
+In the private `include/gateway_config.h`, set
+`GATEWAY_RF_NATIVE_PREPARATION` to 0 (none, default), 1 (wake) or 2 (command
+control), and `GATEWAY_RF_NATIVE_PREPARATION_FRAMES` to a multiple of three.
+For example, mode 1 and 300 frames adds 60.15 ms. The fixed 9,000-packet
+application train leaves room for at most 975 extra packets (1.9999875 s total).
+Zero mode requires zero extra frames; active modes require positive counts.
+Compile-time checks require enabled native bench RF and unqualified feature 4.
+Build both native-test images; ordinary images cannot silently acquire the
+experiment. Apply these settings only in a bench configuration.
+
+The lower-level driver likewise rejects preparation outside primary position
+or `NativeAccess::Bench`, including qualified access. Existing admission expiry
+and cancellation apply from the first prefix packet. Prefixes count toward
+the planner's combined two-second limit; secondary, Jog, Sync and the repeater
+route do not acquire preparation. USB result lines and HTTP status report the
+configured preparation mode and frame count; submitted frame totals include
+the prefix. No automatic retries or new grants are introduced.
+
+The [wake experiment procedure](../../../docs/rf-wake-experiments.md) requires
+original-bridge captures, independent framing/timing checks, controlled idle
+intervals and watched motion before interpreting a result. Hardware and
+RF-only wake acceptance remain unqualified.
 
 ## Bench admission, cancellation and results
 

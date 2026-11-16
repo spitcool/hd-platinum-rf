@@ -25,12 +25,19 @@ NativeAccess nativeAccess(const Policy& policy, Operation operation) {
 
 bool NativePlan::begin(const Command& command, const NativeSchedule& schedule) {
   count_ = ordinal_ = 0;
-  const uint64_t count = uint64_t(schedule.command_frames) + schedule.followup_frames;
+  const uint64_t count = uint64_t(schedule.command_frames) + schedule.followup_frames +
+      schedule.preparation_frames;
+  const bool preparation = schedule.preparation != NativePreparation::None;
   if (command.mask == 0 || (command.mask & (command.mask - 1)) != 0 ||
       (command.operation != Operation::Position && command.operation != Operation::Jog &&
        command.operation != Operation::SecondaryPosition) ||
       schedule.prior_alternate > 1 || schedule.command_frames == 0 ||
       schedule.followup_frames == 0 || schedule.slot_half_us != kNativeSlotHalfUs ||
+      (preparation && command.operation != Operation::Position) ||
+      (schedule.preparation != NativePreparation::None &&
+       schedule.preparation != NativePreparation::Wake &&
+       schedule.preparation != NativePreparation::CommandControl) ||
+      preparation != (schedule.preparation_frames != 0) || schedule.preparation_frames % 3 != 0 ||
       count * kNativeSlotHalfUs > kNativeMaxDurationHalfUs)
     return false;
   bool channel_found = false;
@@ -54,7 +61,10 @@ bool NativePlan::next(NativeEvent& event) {
   event = NativeEvent{};
   if (ordinal_ >= count_)
     return false;
-  const bool followup = ordinal_ >= schedule_.command_frames;
+  const bool preparing = ordinal_ < schedule_.preparation_frames;
+  const bool wake = preparing && schedule_.preparation == NativePreparation::Wake;
+  const bool followup = !preparing &&
+      ordinal_ - schedule_.preparation_frames >= schedule_.command_frames;
   uint8_t mode = followup ? 0x32 :
       (command_.operation == Operation::SecondaryPosition ? 0x6d : 0x50);
   uint8_t value = command_.position;
@@ -73,11 +83,13 @@ bool NativePlan::next(NativeEvent& event) {
   }
   // Primary and secondary position do not use Jog's refresh alternation.
   channel_index_ = (channel_index_ + 1) % kChannels.size();
-  event.payload = {command_.room_id[0], command_.room_id[1], mode, command_.mask, value};
+  event.payload = {command_.room_id[0], command_.room_id[1], uint8_t(wake ? 0x01 : mode),
+                   uint8_t(wake ? 0 : command_.mask), uint8_t(wake ? 0x80 : value)};
   event.ordinal = ordinal_;
   event.start_half_us = ordinal_ * kNativeSlotHalfUs;
   event.channel = kChannels[channel_index_];
-  event.phase = followup ? NativePhase::Followup : NativePhase::Command;
+  event.phase = preparing ? (wake ? NativePhase::Wake : NativePhase::CommandControl)
+                         : followup ? NativePhase::Followup : NativePhase::Command;
   ++ordinal_;
   return true;
 }

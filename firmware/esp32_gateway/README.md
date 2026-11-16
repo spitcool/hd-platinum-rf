@@ -53,6 +53,12 @@ stored as metadata.
 
 ## Build and test
 
+Optional RF-only wake preparation and an equal-airtime command control are
+available for native primary-position bench tests, default off. See
+[radio settings and limits](docs/radio-qualification.md#optional-wake-preparation)
+and the [required idle-time evidence](../../docs/rf-wake-experiments.md). This
+does not implement IR or establish a wake requirement for bridge commands.
+
 From the repository root, use Python 3.10+ for the build tooling:
 
 ```sh

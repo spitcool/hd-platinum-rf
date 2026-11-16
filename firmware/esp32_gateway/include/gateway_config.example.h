@@ -24,4 +24,10 @@
 #define GATEWAY_RF_BENCH false
 // Per-feature physical NiceRF qualification, independent of shade grants.
 #define GATEWAY_RF_NATIVE_QUALIFIED_FEATURES 0u
+// Optional primary-position bench experiment only: 0 none, 1 wake, 2 command
+// control. Positive counts must be multiples of 3, at most 975 with the fixed
+// 9000-packet application train. Requires enabled native bench RF and feature 4
+// unqualified; no effect on secondary/Jog. See docs/radio-qualification.md.
+#define GATEWAY_RF_NATIVE_PREPARATION 0
+#define GATEWAY_RF_NATIVE_PREPARATION_FRAMES 0u
 // Initial sequence is provisioned via USB serial, never reset on normal boot.

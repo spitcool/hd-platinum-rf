@@ -333,7 +333,8 @@ Result Radio::transmitNative(const Command& command, const NativeSchedule& sched
     return result;
   }
   const NativeAccess access = nativeAccess(policy_, command.operation);
-  if (access == NativeAccess::Disabled) {
+  if (access == NativeAccess::Disabled ||
+      (schedule.preparation != NativePreparation::None && access != NativeAccess::Bench)) {
     result.code = ResultCode::Unqualified;
     return result;
   }

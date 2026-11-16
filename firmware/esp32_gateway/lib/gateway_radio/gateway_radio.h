@@ -49,12 +49,16 @@ struct Policy {
 // No guessed initial channel or phase counts. The diagnostic model assumes an
 // idle phase-2 start, no prelude, and a nominal 200.5 us grid. These are explicit
 // software inputs, not a measurement of an original bridge's complete train.
+// RF-only diagnostic prefixes; neither is a qualified bridge wake procedure.
+enum class NativePreparation : uint8_t { None, Wake, CommandControl };
 struct NativeSchedule {
   uint8_t prior_channel = 0;
   uint8_t prior_alternate = 0;
   uint32_t command_frames = 0;
   uint32_t followup_frames = 0;
   uint16_t slot_half_us = 0;
+  NativePreparation preparation = NativePreparation::None;
+  uint32_t preparation_frames = 0;
 };
 constexpr uint16_t kNativeSlotHalfUs = 401;
 constexpr uint32_t kNativeMaxDurationHalfUs = 4000000;
@@ -62,7 +66,7 @@ constexpr uint32_t kNativeSpiHz = 8000000;
 constexpr uint32_t kNativeLateLimitUs = 5;
 constexpr uint32_t kNativeFrameTimeoutUs = 190;
 
-enum class NativePhase : uint8_t { Command, Followup };
+enum class NativePhase : uint8_t { Command, Followup, Wake, CommandControl };
 struct NativeEvent {
   std::array<uint8_t, 5> payload{};
   uint32_t ordinal = 0;

@@ -25,6 +25,11 @@ state.
 
 ## Read these first
 
+- [RF wake experiments](rf-wake-experiments.md) adds the 2026-11-16 external
+  evidence review, default-off primary-position bench preparation and required
+  idle-time trials. The existing failures remain unexplained; no new physical
+  acceptance is claimed. IR implementation is outside scope.
+
 - This handoff describes the software, evidence limits, and restart order.
 - The operator's **`hd-platinum-laptop-private-handoff.md` in the desktop's
   Downloads folder** contains the exact private paths, bridge address, allowed

@@ -39,6 +39,11 @@ Claims in the protocol documents carry explicit evidence labels. In particular, 
 
 ## Research CLI
 
+The offline `rf-native-position-waveform` command provides per-packet native
+primary positioning with optional RF wake and matched-airtime control prefixes.
+See [arguments, limits and required evidence](rf-wake-experiments.md). It creates
+private IQ only; live bridge defaults remain unchanged.
+
 The Python package has no runtime dependencies and supports Python 3.9 or later.
 Run the commands below from the repository root.
 

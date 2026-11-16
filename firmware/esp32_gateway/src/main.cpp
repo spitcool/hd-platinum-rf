@@ -75,6 +75,12 @@
 #ifndef GATEWAY_RF_NATIVE_QUALIFIED_FEATURES
 #define GATEWAY_RF_NATIVE_QUALIFIED_FEATURES 0u
 #endif
+#ifndef GATEWAY_RF_NATIVE_PREPARATION
+#define GATEWAY_RF_NATIVE_PREPARATION 0
+#endif
+#ifndef GATEWAY_RF_NATIVE_PREPARATION_FRAMES
+#define GATEWAY_RF_NATIVE_PREPARATION_FRAMES 0u
+#endif
 
 #if GATEWAY_NETWORK_WIFI
 using NetClient = WiFiClient;
@@ -99,6 +105,17 @@ constexpr uint32_t NativeFeatures = (1u << 4) | (1u << 12) | (1u << 18);
 constexpr uint32_t RepeaterFeatures = (1u << 1) | (1u << 4) | (1u << 12);
 static_assert((GATEWAY_RF_NATIVE_QUALIFIED_FEATURES & ~NativeFeatures) == 0,
               "Native qualification contains an unsupported feature");
+static_assert(GATEWAY_RF_NATIVE_PREPARATION >= 0 && GATEWAY_RF_NATIVE_PREPARATION <= 2,
+              "Native preparation: 0 none, 1 wake, 2 command control");
+static_assert((GATEWAY_RF_NATIVE_PREPARATION == 0) == (GATEWAY_RF_NATIVE_PREPARATION_FRAMES == 0) &&
+              GATEWAY_RF_NATIVE_PREPARATION_FRAMES >= 0 &&
+              GATEWAY_RF_NATIVE_PREPARATION_FRAMES <= 975 &&
+              GATEWAY_RF_NATIVE_PREPARATION_FRAMES % 3 == 0,
+              "Preparation needs whole channel cycles within the combined two-second limit");
+static_assert(GATEWAY_RF_NATIVE_PREPARATION == 0 ||
+              (GATEWAY_RF_ENABLED && GATEWAY_RF_NATIVE && GATEWAY_RF_BENCH &&
+               !(GATEWAY_RF_NATIVE_QUALIFIED_FEATURES & (1u << 4))),
+              "Preparation is only available for unqualified native primary-position bench tests");
 std::atomic<uint32_t> nativeBenchFeatures{0};
 std::atomic<uint32_t> nativeBenchUntilSeconds{0};
 
@@ -319,6 +336,11 @@ void radioTask(void*) {
         schedule.command_frames = 7500;
         schedule.followup_frames = 1500;
         schedule.slot_half_us = 401;
+        if (c.feature == 4) {
+          schedule.preparation = static_cast<platinum::radio::NativePreparation>(
+              GATEWAY_RF_NATIVE_PREPARATION);
+          schedule.preparation_frames = GATEWAY_RF_NATIVE_PREPARATION_FRAMES;
+        }
         // These counts and initial state reproduce the finite SDR diagnostic
         // train. They do not claim measured original interrupt epochs.
         uint8_t feature = c.feature;
@@ -344,10 +366,13 @@ void radioTask(void*) {
       }
       ok = receipt.code == platinum::radio::ResultCode::Submitted ||
            receipt.code == platinum::radio::ResultCode::BenchSubmitted;
-      Serial.printf("radio shade=%u feature=%u result=%s frames=%lu max_lateness_us=%lu\n",
+      Serial.printf("radio shade=%u feature=%u result=%s frames=%lu max_lateness_us=%lu preparation=%u preparation_frames=%lu\n",
                     c.shade, c.feature, platinum::radio::resultName(receipt.code),
                     static_cast<unsigned long>(receipt.frames_submitted),
-                    static_cast<unsigned long>(receipt.max_lateness_us));
+                    static_cast<unsigned long>(receipt.max_lateness_us),
+                    unsigned(GATEWAY_RF_NATIVE && c.feature == 4 ? GATEWAY_RF_NATIVE_PREPARATION : 0),
+                    static_cast<unsigned long>(GATEWAY_RF_NATIVE && c.feature == 4
+                        ? GATEWAY_RF_NATIVE_PREPARATION_FRAMES : 0));
       if (!ok) {
         radioReady = false;
         break;
@@ -823,6 +848,8 @@ void addStatus(JsonDocument& doc) {
   doc["backend"] = backendName();
   doc["backend_features"] = backendFeatures();
   doc["native_qualified_features"] = GATEWAY_RF_NATIVE_QUALIFIED_FEATURES;
+  doc["native_preparation"] = GATEWAY_RF_NATIVE_PREPARATION;
+  doc["native_preparation_frames"] = GATEWAY_RF_NATIVE_PREPARATION_FRAMES;
   doc["native_bench_features"] = GATEWAY_RF_NATIVE && GATEWAY_RF_BENCH
                                     ? backendFeatures() & ~GATEWAY_RF_NATIVE_QUALIFIED_FEATURES : 0u;
   doc["delivery"] = "unverified";

@@ -3,7 +3,7 @@
 
 # Testing and validation
 
-Status review: 2026-10-24
+Latest RF wake test procedure: 2026-11-16; historical results retain their dates.
 
 This document defines the canonical repeatable test environment, safety rules, evidence gates, and project validation status. The [reference bench lab log](lab-log.md) records sanitized capability qualifications and test history, but it is explicitly non-canonical: another contributor may use different hardware that satisfies the requirements here and in the BOM. Private network addresses, serial numbers, local paths, shopping prices, and fulfillment details are not recorded in tracked documentation.
 
@@ -16,6 +16,27 @@ Related documents:
 - [Credits and provenance](../CREDITS.md) — sources and independent-development treatment.
 
 ## Reference test environment
+
+RF-only wake preparation has a separate [evidence and trial
+procedure](rf-wake-experiments.md). `tests/test_rf_wake.py` checks the scoped
+wake decode, an independent CRC vector, complete channel cycles, unchanged
+command suffix, the combined two-second bound, private artifacts and CLI
+validation. Independent written-IQ searches check every frame's payload,
+channel, CRC and time in short wake/control trains. These do not establish
+receiver sleep behavior or physical acceptance.
+
+Run the complete host suite and package build below. For packet-radio changes,
+also run all portable firmware tests with address/undefined-behavior sanitizers:
+
+```sh
+.venv/bin/python firmware/esp32_gateway/tools/test_native.py --sanitizers
+```
+
+The native-radio tests retain full-train conformance vectors and check both
+preparation modes, malformed/overflow plans, total airtime, qualified-path
+rejection before CE and cancellation during preparation. Build the Wi-Fi and
+Ethernet ordinary/native-test images using the
+[firmware build commands](../firmware/esp32_gateway/README.md).
 
 Original-firmware research now has an offline loader and a separately invoked
 8051 keepalive probe; see [Original firmware execution](firmware-emulation.md).

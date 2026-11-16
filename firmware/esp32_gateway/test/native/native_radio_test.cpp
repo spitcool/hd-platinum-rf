@@ -230,6 +230,69 @@ void body_and_phase_boundaries() {
   }
 }
 
+void preparation_experiments() {
+  for (auto mode : {NativePreparation::Wake, NativePreparation::CommandControl}) {
+    auto s = schedule(4, 5);
+    s.preparation = mode;
+    s.preparation_frames = 6;
+    NativePlan plan;
+    assert(plan.begin(command(), s) && plan.frameCount() == 15);
+    NativeEvent e;
+    for (unsigned i = 0; i < 15; ++i) {
+      assert(plan.next(e));
+      const bool wake = i < 6 && mode == NativePreparation::Wake;
+      const std::array<uint8_t, 5> body = {0x12, 0x34, uint8_t(wake ? 1 : i < 10 ? 0x50 : 0x32),
+                                          uint8_t(wake ? 0 : 8), 0x80};
+      assert(e.payload == body && e.ordinal == i && e.start_half_us == i * 401);
+      assert(e.channel == (std::array<uint8_t, 3>{33, 52, 71}[i % 3]));
+      assert(e.phase == (i < 6 ? (wake ? NativePhase::Wake : NativePhase::CommandControl)
+                              : i < 10 ? NativePhase::Command : NativePhase::Followup));
+    }
+    TimedIo io;
+    Radio radio(io);
+    assert(radio.begin(bench()) == ResultCode::Ready);
+    assert(radio.transmitNative(command(), s).code == ResultCode::BenchSubmitted);
+    assert(io.pulses.size() == 15);
+    for (unsigned i = 0; i < 15; ++i)
+      assert(io.pulses[i] - io.pulses[0] == (i * 401 + 1) / 2);
+
+    auto qualified = bench();
+    qualified.native_position = NativeAccess::Qualified;
+    TimedIo blocked;
+    Radio production(blocked);
+    assert(production.begin(qualified) == ResultCode::Ready);
+    assert(production.transmitNative(command(), s).code == ResultCode::Unqualified);
+    assert(blocked.pulses.empty() && blocked.begins == 0);
+
+    // Revocation during preparation must prevent every position packet.
+    TimedIo cancelled;
+    Radio cancellation(cancelled);
+    assert(cancellation.begin(bench()) == ResultCode::Ready);
+    const auto stop = [](void* context) { return !static_cast<TimedIo*>(context)->pulses.empty(); };
+    assert(cancellation.transmitNative(command(), s, stop, &cancelled).code == ResultCode::Cancelled);
+    assert(cancelled.pulses.size() == 1 && !cancellation.ready());
+
+    assert(!plan.begin(command(Operation::Jog), s));
+    assert(!plan.begin(command(Operation::SecondaryPosition), s));
+    for (uint32_t count : {0u, 1u, 2u, 4u, std::numeric_limits<uint32_t>::max()}) {
+      s.preparation_frames = count;
+      assert(!plan.begin(command(), s));
+    }
+    s = schedule();
+    s.preparation = mode;
+    s.preparation_frames = 975;
+    assert(plan.begin(command(), s) && plan.durationHalfUs() == 3999975);
+    s.preparation_frames = 978;
+    assert(!plan.begin(command(), s));
+  }
+  auto s = schedule();
+  NativePlan plan;
+  s.preparation_frames = 3;
+  assert(!plan.begin(command(), s));
+  s.preparation = static_cast<NativePreparation>(255);
+  assert(!plan.begin(command(), s));
+}
+
 void invalid_plans() {
   NativePlan plan;
   NativeEvent event;
@@ -390,6 +453,7 @@ void timing_faults_and_cancellation() {
 int main() {
   complete_planner_vectors();
   body_and_phase_boundaries();
+  preparation_experiments();
   invalid_plans();
   authorization_and_profiles();
   finite_timed_transmission();

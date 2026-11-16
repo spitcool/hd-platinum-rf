@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterator
 
-from .rf import REMOTE_CHANNELS, REMOTE_FREQUENCIES_HZ
+from .rf import REMOTE_CHANNELS, REMOTE_FREQUENCIES_HZ, build_wake_payload
 from .rf_positions import build_position_payloads
 from .rf_waveform import WaveformConfig, _integer, _numpy, _write_iq_chunks, synthesize_frame
 
@@ -106,6 +106,16 @@ class _NativePositionPlanCore:
         return self.command_frame_count + self.followup_frame_count
 
     @property
+    def frame_payloads(self) -> tuple[bytes, ...]:
+        return self._payloads
+
+    def _phase_payloads(self):
+        for _ in range(self.command_frame_count):
+            yield "command", self.command_payload
+        for _ in range(self.followup_frame_count):
+            yield "followup", self.followup_payload
+
+    @property
     def sample_count(self) -> int:
         return self.frame_count * self.config.slot_samples
 
@@ -116,11 +126,7 @@ class _NativePositionPlanCore:
     def iter_events(self) -> Iterator[NativePositionEvent]:
         """Rotate before every packet, retaining channel phase at the boundary."""
         channel_index = REMOTE_CHANNELS.index(self.prior_channel)
-        for ordinal in range(self.frame_count):
-            if ordinal < self.command_frame_count:
-                phase, payload = "command", self.command_payload
-            else:
-                phase, payload = "followup", self.followup_payload
+        for ordinal, (phase, payload) in enumerate(self._phase_payloads()):
             channel_index = (channel_index + 1) % len(REMOTE_CHANNELS)
             yield NativePositionEvent(ordinal, ordinal * self.config.slot_samples,
                 REMOTE_FREQUENCIES_HZ[channel_index], phase, payload)
@@ -167,13 +173,66 @@ class NativePositionPlan(_NativePositionPlanCore):
     assumptions. This type cannot select secondary-rail commands.
     """
 
+    preparation: str = "none"
+    preparation_frame_count: int = 0
+
+    def __post_init__(self):
+        if self.preparation not in ("none", "wake", "command-control"):
+            raise ValueError("preparation must be none, wake or command-control")
+        count = _integer(self.preparation_frame_count, "preparation frame count", 0, 10_000)
+        if (self.preparation == "none") != (count == 0) or count % 3:
+            raise ValueError("preparation requires positive whole three-channel cycles; none requires zero")
+        object.__setattr__(self, "preparation_frame_count", count)
+        super().__post_init__()
+
+    @property
+    def preparation_payload(self) -> bytes | None:
+        if self.preparation == "wake":
+            return build_wake_payload(self.room_rf_id)
+        return self.command_payload if self.preparation == "command-control" else None
+
+    @property
+    def frame_count(self) -> int:
+        return super().frame_count + self.preparation_frame_count
+
+    @property
+    def frame_payloads(self) -> tuple[bytes, ...]:
+        return self._payloads if self.preparation_payload is None else (
+            self.preparation_payload,) + self._payloads
+
+    def _phase_payloads(self):
+        for _ in range(self.preparation_frame_count):
+            yield self.preparation, self.preparation_payload
+        yield from super()._phase_payloads()
+
+    def as_dict(self, *, include_private: bool = False) -> dict:
+        result = super().as_dict(include_private=include_private)
+        payload = self.preparation_payload
+        result.update(
+            preparation=self.preparation,
+            preparation_frame_count=self.preparation_frame_count,
+            preparation_seconds=self.preparation_frame_count * self.config.slot_samples / SAMPLE_RATE_HZ,
+            preparation_payload=(None if payload is None else
+                payload.hex() if include_private else "xxxx" + payload[2:].hex()),
+            preparation_qualified=False,
+        )
+        if self.preparation != "none":
+            result["model_note"] += (
+                " Added preparation is an RF-only experiment, distinct from the "
+                "original active-timer phase-1 prelude. Wake semantics are externally "
+                "observed for IR; native bridge acceptance is unverified."
+            )
+        return result
+
 
 def build_native_position_plan(room_rf_id, mask, position, *, prior_channel,
                                command_frame_count, followup_frame_count,
-                               slot_us) -> NativePositionPlan:
+                               slot_us, preparation="none",
+                               preparation_frame_count=0) -> NativePositionPlan:
     """Plan offline only; no initial channel, phase count, or grid is inferred."""
     return NativePositionPlan(room_rf_id, mask, position, prior_channel,
-                              command_frame_count, followup_frame_count, slot_us)
+                              command_frame_count, followup_frame_count, slot_us,
+                              preparation, preparation_frame_count)
 
 
 def iter_native_position_iq_chunks(plan: NativePositionPlan, *,
@@ -191,7 +250,7 @@ def _iter_native_position_iq_chunks(plan: _NativePositionPlanCore, *,
     np = _numpy()
     config = plan.config
     templates = {}
-    for payload in (plan.command_payload, plan.followup_payload):
+    for payload in set(plan.frame_payloads):
         for channel in config.channels_hz:
             pulse = synthesize_frame(payload, sample_rate_hz=SAMPLE_RATE_HZ,
                 deviation_hz=config.deviation_hz, gaussian_bt=config.gaussian_bt,

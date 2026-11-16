@@ -189,6 +189,21 @@ def _parser() -> argparse.ArgumentParser:
     position_waveform.add_argument("--followup-repetitions", type=int, default=425)
     position_waveform.add_argument("--overwrite", action="store_true")
 
+    native = subparsers.add_parser("rf-native-position-waveform",
+        help="generate an offline per-packet native position/wake experiment (no RF)")
+    native.add_argument("path")
+    native.add_argument("--room-rf-id", required=True)
+    native.add_argument("--shade-mask", type=lambda value: int(value, 0), required=True)
+    native.add_argument("--position", type=int, required=True)
+    native.add_argument("--prior-channel", type=int, required=True)
+    native.add_argument("--command-frames", type=int, required=True)
+    native.add_argument("--followup-frames", type=int, required=True)
+    native.add_argument("--slot-us", type=float, required=True)
+    native.add_argument("--preparation", choices=("none", "wake", "command-control"), default="none")
+    native.add_argument("--preparation-frames", type=int, default=0,
+        help="prefix packets, a multiple of three; included in the two-second limit")
+    native.add_argument("--include-private", action="store_true")
+
     def radio_options(command):
         command.add_argument("--sample-rate", type=int, default=48_000_000)
         command.add_argument("--center", type=int, default=2_452_000_000)
@@ -370,6 +385,19 @@ def _run_position_waveform(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_native_position_waveform(args: argparse.Namespace) -> int:
+    from .rf import parse_remote_id
+    from .rf_native_position import build_native_position_plan, write_native_position_waveform
+    plan = build_native_position_plan(parse_remote_id(args.room_rf_id), args.shade_mask,
+        args.position, prior_channel=args.prior_channel,
+        command_frame_count=args.command_frames, followup_frame_count=args.followup_frames,
+        slot_us=args.slot_us, preparation=args.preparation,
+        preparation_frame_count=args.preparation_frames)
+    print(json.dumps(write_native_position_waveform(args.path, plan,
+        include_private=args.include_private), indent=2, sort_keys=True))
+    return 0
+
+
 def _run_bridge(args: argparse.Namespace) -> int:
     from .bridge import BridgeService, DryRunBackend, load_config, make_server
     config = load_config(args.config)
@@ -432,6 +460,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _run_rf_waveform(args)
         if args.command == "rf-position-waveform":
             return _run_position_waveform(args)
+        if args.command == "rf-native-position-waveform":
+            return _run_native_position_waveform(args)
         if args.command in ("rf-transmit", "rf-capture", "rf-loopback"):
             return _run_radio(args)
         if args.command == "bridge-serve":

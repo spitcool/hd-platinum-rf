@@ -23,12 +23,29 @@ Every technical claim below uses one of these labels:
 
 - **[PRIMARY]** — a manufacturer data sheet or regulatory filing.
 - **[CAPTURE]** — a community member reported a direct SPI, logic-analyzer, or RF capture. Any local reproduction is marked separately.
+- **[EXTERNAL OBSERVED]** — another project reports physical shade behavior or RF captures; not reproduced on this installation unless explicitly stated.
 - **[LOCAL OBSERVED]** — measured or decoded from this installation's retained IQ. The stated scope and limitations apply; this does not imply all remote revisions or validation gates have been covered.
 - **[REFERENCE]** — behavior of the local `HD-Platinum-Remote-Hack.ino` reference sketch, not necessarily behavior of an original remote.
 - **[INFERENCE]** — a conclusion that follows from available evidence but still requires a direct test.
 - **[UNKNOWN]** — not established by the available evidence.
 
 Source-backed claims and local observations are distinguished explicitly. Initial local decoding does not constitute independent radio interoperability validation or completion of the capture matrix.
+
+## External wake evidence and RF-only experiments — 2026-11-16
+
+**[EXTERNAL OBSERVED]** `digamesystems/HD_Remote_Clone`, commit
+[`c36fbbb`](https://github.com/digamesystems/HD_Remote_Clone/tree/c36fbbba46e3481698c8254f8b45db0781dbe07a),
+identifies `ID0 ID1 01 00 80` as the RF enable emitted during red-mode arrows.
+Their controlled tests establish its role alongside IR and report substantially
+better acceptance with longer interleaved RF/IR sequences after idle. RF-only
+group commands work without a separate wake. This supports a sleep/acquisition
+hypothesis for bridge misses, not a proven RF-only wake requirement.
+
+The [wake experiment specification](rf-wake-experiments.md) records source scope,
+the optional native-primary wake and command-control prefixes, combined airtime
+limits and required original-bridge/cold-versus-warm captures. Defaults retain
+the existing waveform. Neither the 250 kbps route nor enrollment changes. No
+local RF-only wake acceptance or new physical qualification is claimed.
 
 ## Initial local receive result — 2026-10-23
 
@@ -46,7 +63,7 @@ These frames and the independent selected-window PHY checks establish the follow
 | Data rate | Approximately `2 Mbps` | Independent fitting on selected CRC-valid frame tails gave a median near `1.9995 Mbps`; short-packet fits are not a calibrated clock measurement. |
 | Channel coverage | CRC-valid, carrier-supported frames at `2433`, `2452`, and `2471 MHz` in a selected command interval | This demonstrates reception on all three channels; it does not complete the per-command/per-channel capture matrix. |
 | Commands | Group 1 Up, Down, and following `0x21`/`0x22` tails | The operator-confirmed sequence is supported by decoded action changes; other groups and long holds are not yet validated locally. |
-| Additional state | Mode `0x01`, group mask `0x00`, action/state `0x80` occurs in earlier clusters | The bytes are observed; their association with a specific button event and their no-group meaning remain unverified. |
+| Additional state | Mode `0x01`, group mask `0x00`, action/state `0x80` occurs in earlier clusters | Locally captured bytes; subsequently identified externally as the red-mode RF wake. Local button-event association and RF-only bridge effect remain unverified; see the 2026-11-16 section above. |
 
 **[LOCAL OBSERVED]** An independent phase-discriminator measurement on selected `2471 MHz` frame tails estimated a median deviation of approximately `±359 kHz`, with a 5th–95th percentile range of about `±339–377 kHz`. This is an estimate from the received waveform and filtering, not a calibrated replacement for Nordic's typical `±320 kHz` chip specification. RF energy persists for roughly `93 µs` per measured burst: approximately `49 µs` precedes the validated `44 µs` data frame. The earlier energy must not be counted as a second decoded packet, and its physical cause remains unverified.
 

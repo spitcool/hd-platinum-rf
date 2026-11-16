@@ -38,6 +38,11 @@ installation grant mask. `backend_features` is the currently admitted mask;
 from temporary bench permission. Backend names are `simulated`, `repeater-radio`
 and `native-radio`. All delivery remains unverified.
 
+Status includes `native_preparation` (0 none, 1 RF wake, 2 command control) and
+`native_preparation_frames`. These are read-only build settings for optional
+primary-position bench experiments, not HTTP request options or qualification.
+Both default to zero. See [radio qualification](radio-qualification.md#optional-wake-preparation).
+
 Each shade's `controls[]` contains the supported product features among 4, 18,
 7, 19 and 10. Every entry has `feature`, `label`, `granted`, `backend_supported`,
 `available`, `requested_value`, `request_status`, `role`, `endpoint_mapping`, `open_value` and

@@ -3,6 +3,12 @@
 
 # Protocol conformance before shade testing
 
+The [2026-11-16 wake experiment](rf-wake-experiments.md) adds optional,
+unqualified RF-only preparation before native primary positioning. It is
+separate from the original active-timer phase-1 prelude. Defaults preserve the
+original-code comparisons below; prepared trains are experiments, not newly
+matched original behavior or demonstrated shade acceptance.
+
 The public live route is **2440 MHz bridge packets to a Platinum repeater**;
 separate private tests exercise direct native per-packet hopping. One watched
 native Jog succeeded. The first watched native primary raw-128 trial produced

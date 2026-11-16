@@ -3,6 +3,17 @@
 
 # Next tests toward complete Platinum RF control
 
+**2026-11-16 addition:** prioritize [RF wake and idle-time evidence
+collection](rf-wake-experiments.md#required-evidence-collection) alongside improved
+independent reception. External work identifies our previously unexplained
+`01 00 80` state as an RF enable for IR and reports idle-dependent acceptance.
+RF-only primary-position wake and equal-airtime command-control prefixes are
+now available offline and on the ESP32 bench route, default off, within the
+combined two-second limit. Capture original-bridge cold/warm behavior before
+attributing our failures to missing wake; use randomized first-attempt trials,
+physical rail marks and the documented evidence fields. This adds no IR scope
+and does not qualify a bridge wake, enrollment or the 250 kbps route.
+
 **One watched native Jog of an already paired shade succeeded on 2026-10-25**,
 with the original bridge and all repeaters off. The operator observed the
 intended shade jog and no other shade move. This establishes one direct-native
